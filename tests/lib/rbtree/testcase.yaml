@@ -1,0 +1,3 @@
+tests:
+    misc.rbtree:
+       tags: rbtree

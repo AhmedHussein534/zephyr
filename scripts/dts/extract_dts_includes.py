@@ -18,7 +18,6 @@ import collections
 from devicetree import parse_file
 from extract.globals import *
 
-
 class Loader(yaml.Loader):
     def __init__(self, stream):
         self._root = os.path.realpath(stream.name)
@@ -106,7 +105,7 @@ def extract_interrupts(node_address, yaml, y_key, names, defs, def_label):
             name = []
         else:
             try:
-                name = [convert_string_to_label(names.pop(0)).upper()]
+                name = [convert_string_to_label(names.pop(0))]
             except:
                 name = []
 
@@ -126,6 +125,12 @@ def extract_interrupts(node_address, yaml, y_key, names, defs, def_label):
             if len(name):
                 alias_list = l_base + l_cell_prefix + name + l_cell_name
                 prop_alias['_'.join(alias_list)] = l_fqn
+
+            if node_address in aliases:
+                for i in aliases[node_address]:
+                    alias_label = convert_string_to_label(i)
+                    alias_list = [alias_label] + l_cell_prefix + name + l_cell_name
+                    prop_alias['_'.join(alias_list)] = l_fqn
 
         index += 1
         insert_defs(node_address, defs, prop_def, prop_alias)
@@ -151,7 +156,7 @@ def extract_reg_prop(node_address, names, defs, def_label, div, post_label):
 
     index = 0
     l_base = def_label.split('/')
-    l_addr = [convert_string_to_label(post_label).upper()]
+    l_addr = [convert_string_to_label(post_label)]
     l_size = ["SIZE"]
 
     while props:
@@ -188,6 +193,15 @@ def extract_reg_prop(node_address, names, defs, def_label, div, post_label):
                 prop_alias['_'.join(l_base + l_addr)] = l_addr_fqn
             if size_cells:
                 prop_alias['_'.join(l_base + l_size)] = l_size_fqn
+
+        # generate defs for node aliases
+        if node_address in aliases:
+            for i in aliases[node_address]:
+                alias_label = convert_string_to_label(i)
+                alias_addr = [alias_label] + l_addr
+                alias_size = [alias_label] + l_size
+                prop_alias['_'.join(alias_addr)] = '_'.join(l_base + l_addr)
+                prop_alias['_'.join(alias_size)] = '_'.join(l_base + l_size)
 
         insert_defs(node_address, defs, prop_def, prop_alias)
 
@@ -239,6 +253,13 @@ def extract_cells(node_address, yaml, y_key, names, index, prefix, defs,
                 if index == 0:
                     prop_alias['_'.join(label[:-1])] = '_'.join(label)
 
+                # generate defs for node aliases
+                if node_address in aliases:
+                    for i in aliases[node_address]:
+                        alias_label = convert_string_to_label(i)
+                        alias = [alias_label] + label[1:-1]
+                        prop_alias['_'.join(alias)] = '_'.join(label[:-1])
+
         insert_defs(node_address, defs, prop_def, prop_alias)
 
     # recurse if we have anything left
@@ -281,10 +302,8 @@ def extract_pinctrl(node_address, yaml, pinconf, names, index, defs,
                         [cell_yaml['#cells'][0]] + [str(i)]
                     func_label = key_label[:-2] + \
                         [cell_yaml['#cells'][1]] + [str(i)]
-                    key_label = convert_string_to_label(
-                        '_'.join(key_label)).upper()
-                    func_label = convert_string_to_label(
-                        '_'.join(func_label)).upper()
+                    key_label = convert_string_to_label('_'.join(key_label))
+                    func_label = convert_string_to_label('_'.join(func_label))
 
                     prop_def[key_label] = cells
                     prop_def[func_label] = \
@@ -296,16 +315,17 @@ def extract_pinctrl(node_address, yaml, pinconf, names, index, defs,
 def extract_single(node_address, yaml, prop, key, prefix, defs, def_label):
 
     prop_def = {}
+    prop_alias = {}
 
     if isinstance(prop, list):
         for i, p in enumerate(prop):
-            k = convert_string_to_label(key).upper()
+            k = convert_string_to_label(key)
             label = def_label + '_' + k
             if isinstance(p, str):
                 p = "\"" + p + "\""
             prop_def[label + '_' + str(i)] = p
     else:
-        k = convert_string_to_label(key).upper()
+        k = convert_string_to_label(key)
         label = def_label + '_' + k
 
         if prop == 'parent-label':
@@ -315,11 +335,14 @@ def extract_single(node_address, yaml, prop, key, prefix, defs, def_label):
             prop = "\"" + prop + "\""
         prop_def[label] = prop
 
-    if node_address in defs:
-        defs[node_address].update(prop_def)
-    else:
-        defs[node_address] = prop_def
+        # generate defs for node aliases
+        if node_address in aliases:
+            for i in aliases[node_address]:
+                alias_label = convert_string_to_label(i)
+                alias = alias_label + '_' + k
+                prop_alias[alias] = label
 
+    insert_defs(node_address, defs, prop_def, prop_alias)
 
 def extract_string_prop(node_address, yaml, key, label, defs):
 
@@ -328,7 +351,7 @@ def extract_string_prop(node_address, yaml, key, label, defs):
     node = reduced[node_address]
     prop = node['props'][key]
 
-    k = convert_string_to_label(key).upper()
+    k = convert_string_to_label(key)
     prop_def[label] = "\"" + prop + "\""
 
     if node_address in defs:
@@ -371,6 +394,12 @@ def extract_property(node_compat, yaml, node_address, y_key, y_val, names,
                         " configured as " + str(parent_bus) +
                         " bus master")
 
+            # Generate alias definition if parent has any alias
+            if parent_address in aliases:
+                for i in aliases[parent_address]:
+                    node_alias = i + '_' + def_label
+                    aliases[node_address].append(node_alias)
+
             # Use parent label to generate label
             parent_label = get_node_label(
                 find_parent_prop(node_address,'compatible') , parent_address)
@@ -393,7 +422,7 @@ def extract_property(node_compat, yaml, node_address, y_key, y_val, names,
         extract_pinctrl(node_address, yaml,
                         reduced[node_address]['props'][y_key],
                         names[p_index], p_index, defs, def_label)
-    elif 'clocks' in y_key:
+    elif 'clocks' in y_key or 'gpios' in y_key:
         extract_cells(node_address, yaml, y_key,
                       names, 0, prefix, defs, def_label)
     else:
@@ -419,8 +448,7 @@ def extract_node_include_info(reduced, root_node_address, sub_node_address,
     if yaml[node_compat].get('use-property-label', False):
         try:
             label = y_node['properties']['label']
-            label_override = convert_string_to_label(
-                                    node['props']['label']).upper()
+            label_override = convert_string_to_label(node['props']['label'])
         except KeyError:
             pass
 
@@ -436,7 +464,7 @@ def extract_node_include_info(reduced, root_node_address, sub_node_address,
 
                 prefix = []
                 if v.get('use-name-prefix') is not None:
-                    prefix = [convert_string_to_label(k.upper())]
+                    prefix = [convert_string_to_label(k)]
 
                 for c in node['props'].keys():
                     if c.endswith("-names"):

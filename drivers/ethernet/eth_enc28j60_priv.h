@@ -230,14 +230,12 @@ struct eth_enc28j60_runtime {
 	K_THREAD_STACK_MEMBER(thread_stack,
 			      CONFIG_ETH_ENC28J60_RX_THREAD_STACK_SIZE);
 	struct k_thread thread;
+	u8_t mac_address[6];
 	struct device *gpio;
 	struct device *spi;
 	struct spi_cs_control spi_cs;
 	struct spi_config spi_cfg;
 	struct gpio_callback gpio_cb;
-	u8_t mem_buf[MAX_BUFFER_LENGTH + 1];
-	u8_t  tx_tsv[TSV_SIZE];
-	u8_t  rx_rsv[RSV_SIZE];
 	struct k_sem tx_rx_sem;
 	struct k_sem int_sem;
 };

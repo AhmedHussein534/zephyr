@@ -346,8 +346,9 @@ _SYSCALL_HANDLER(k_thread_create,
 {
 	int prio;
 	u32_t options, delay;
+	u32_t total_size;
 #ifndef CONFIG_MPU_REQUIRES_POWER_OF_TWO_ALIGNMENT
-	u32_t guard_size, total_size;
+	u32_t guard_size;
 #endif
 	struct _k_object *stack_object;
 	struct k_thread *new_thread = (struct k_thread *)new_thread_p;
@@ -376,12 +377,13 @@ _SYSCALL_HANDLER(k_thread_create,
 						     &total_size),
 			    "stack size overflow (%u+%u)", stack_size,
 			    guard_size);
-
+#else
+	total_size = stack_size;
+#endif
 	/* They really ought to be equal, make this more strict? */
 	_SYSCALL_VERIFY_MSG(total_size <= stack_object->data,
 			    "stack size %u is too big, max is %u",
 			    total_size, stack_object->data);
-#endif
 
 	/* Verify the struct containing args 6-10 */
 	_SYSCALL_MEMORY_READ(margs, sizeof(*margs));

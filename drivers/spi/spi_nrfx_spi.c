@@ -91,8 +91,8 @@ static int configure(struct device *dev,
 		return 0;
 	}
 
-	if (spi_cfg->operation & SPI_OP_MODE_SLAVE) {
-		SYS_LOG_ERR("Slave mode is not supported for %s",
+	if (SPI_OP_MODE_GET(spi_cfg->operation) != SPI_OP_MODE_MASTER) {
+		SYS_LOG_ERR("Slave mode is not supported on %s",
 			    dev->config->name);
 		return -EINVAL;
 	}
@@ -139,16 +139,16 @@ static void transfer_next_chunk(struct device *dev)
 	size_t chunk_len = spi_context_longest_current_buf(ctx);
 
 	if (chunk_len > 0) {
-		const nrfx_spi_xfer_desc_t xfer_desc = {
-			.p_tx_buffer = ctx->tx_buf,
-			.tx_length = spi_context_tx_buf_on(ctx) ? chunk_len : 0,
-			.p_rx_buffer = ctx->rx_buf,
-			.rx_length = spi_context_rx_buf_on(ctx) ? chunk_len : 0,
-		};
-		dev_data->chunk_len = chunk_len;
-		nrfx_err_t result = nrfx_spi_xfer(&get_dev_config(dev)->spi,
-						  &xfer_desc, 0);
+		nrfx_spi_xfer_desc_t xfer;
+		nrfx_err_t result;
 
+		dev_data->chunk_len = chunk_len;
+
+		xfer.p_tx_buffer = ctx->tx_buf;
+		xfer.tx_length   = spi_context_tx_buf_on(ctx) ? chunk_len : 0;
+		xfer.p_rx_buffer = ctx->rx_buf;
+		xfer.rx_length   = spi_context_rx_buf_on(ctx) ? chunk_len : 0;
+		result = nrfx_spi_xfer(&get_dev_config(dev)->spi, &xfer, 0);
 		if (result == NRFX_SUCCESS) {
 			return;
 		}
@@ -270,24 +270,12 @@ static int init_spi(struct device *dev, const nrfx_spi_config_t *config)
 	return 0;
 }
 
-static void spi_isr(void *irq_handler)
-{
-	((nrfx_irq_handler_t)irq_handler)();
-}
-
-/* In Nordic SoCs the IRQ number assigned to a peripheral is equal to the ID
- * of the block of 0x1000 bytes in the peripheral address space assigned to
- * this peripheral. See the chapter "Peripheral interface" (sections "Peripheral
- * ID" and "Interrupts") in the product specification of a given SoC.
- */
-#define NRF_SPI_IRQ_NUMBER(idx)  (uint8_t)((uint32_t)NRF_SPI##idx >> 12u)
-
 #define SPI_NRFX_SPI_DEVICE(idx)					\
 	static int spi_##idx##_init(struct device *dev)			\
 	{								\
-		IRQ_CONNECT(NRF_SPI_IRQ_NUMBER(idx),			\
+		IRQ_CONNECT(NRFX_IRQ_NUMBER_GET(NRF_SPI##idx),		\
 			    CONFIG_SPI_##idx##_IRQ_PRI,			\
-			    spi_isr, nrfx_spi_##idx##_irq_handler, 0);	\
+			    nrfx_isr, nrfx_spi_##idx##_irq_handler, 0);	\
 		const nrfx_spi_config_t config = {			\
 			.sck_pin   = CONFIG_SPI_##idx##_NRF_SCK_PIN,	\
 			.mosi_pin  = CONFIG_SPI_##idx##_NRF_MOSI_PIN,	\

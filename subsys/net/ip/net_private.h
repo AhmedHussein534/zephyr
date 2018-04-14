@@ -15,6 +15,27 @@
 #include <net/net_context.h>
 #include <net/net_pkt.h>
 
+#ifdef CONFIG_NET_MGMT_EVENT_INFO
+
+#include <net/net_event.h>
+
+/* Maximum size of "struct net_event_ipv6_addr" or
+ * "struct net_event_ipv6_nbr" or "struct net_event_ipv6_route".
+ * NOTE: Update comments here and calculate which struct occupies max size.
+ */
+
+#ifdef CONFIG_NET_L2_WIFI_MGMT
+
+#include <net/wifi_mgmt.h>
+#define NET_EVENT_INFO_MAX_SIZE sizeof(struct wifi_scan_result)
+
+#else
+
+#define NET_EVENT_INFO_MAX_SIZE sizeof(struct net_event_ipv6_route)
+
+#endif /* CONFIG_NET_L2_WIFI_MGMT */
+#endif /* CONFIG_NET_MGMT_EVENT_INFO */
+
 #include "connection.h"
 
 extern void net_pkt_init(void);

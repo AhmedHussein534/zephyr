@@ -344,7 +344,7 @@ struct net_if *net_if_get_default(void)
 	iface = net_if_get_first_by_type(&NET_L2_GET_NAME(DUMMY));
 #endif
 #if defined(CONFIG_NET_DEFAULT_IF_OFFLOAD)
-	iface = net_if_get_first_by_type(&NET_L2_GET_NAME(OFFLOAD_IP));
+	iface = net_if_get_first_by_type(NULL);
 #endif
 
 	return iface ? iface : __net_if_start;
@@ -355,6 +355,12 @@ struct net_if *net_if_get_first_by_type(const struct net_l2 *l2)
 	struct net_if *iface;
 
 	for (iface = __net_if_start; iface != __net_if_end; iface++) {
+#if defined(CONFIG_NET_OFFLOAD)
+		if (!l2 && iface->if_dev->offload) {
+			return iface;
+		}
+#endif
+
 		if (net_if_l2(iface) == l2) {
 			return iface;
 		}
@@ -1734,6 +1740,22 @@ bool net_if_ipv4_addr_mask_cmp(struct net_if *iface,
 	return false;
 }
 
+struct net_if *net_if_ipv4_select_src_iface(struct in_addr *dst)
+{
+	struct net_if *iface;
+
+	for (iface = __net_if_start; iface != __net_if_end; iface++) {
+		bool ret;
+
+		ret = net_if_ipv4_addr_mask_cmp(iface, dst);
+		if (ret) {
+			return iface;
+		}
+	}
+
+	return net_if_get_default();
+}
+
 struct net_if_addr *net_if_ipv4_addr_lookup(const struct in_addr *addr,
 					    struct net_if **ret)
 {
@@ -2010,7 +2032,7 @@ void net_if_call_link_cb(struct net_if *iface, struct net_linkaddr *lladdr,
 	}
 }
 
-static bool need_calc_checksum(struct net_if *iface, enum eth_hw_caps caps)
+static bool need_calc_checksum(struct net_if *iface, enum ethernet_hw_caps caps)
 {
 #if defined(CONFIG_NET_L2_ETHERNET)
 	if (net_if_l2(iface) != &NET_L2_GET_NAME(ETHERNET)) {
@@ -2025,12 +2047,12 @@ static bool need_calc_checksum(struct net_if *iface, enum eth_hw_caps caps)
 
 bool net_if_need_calc_tx_checksum(struct net_if *iface)
 {
-	return need_calc_checksum(iface, ETH_HW_TX_CHKSUM_OFFLOAD);
+	return need_calc_checksum(iface, ETHERNET_HW_TX_CHKSUM_OFFLOAD);
 }
 
 bool net_if_need_calc_rx_checksum(struct net_if *iface)
 {
-	return need_calc_checksum(iface, ETH_HW_RX_CHKSUM_OFFLOAD);
+	return need_calc_checksum(iface, ETHERNET_HW_RX_CHKSUM_OFFLOAD);
 }
 
 struct net_if *net_if_get_by_index(u8_t index)
@@ -2068,6 +2090,12 @@ int net_if_up(struct net_if *iface)
 	if (atomic_test_bit(iface->if_dev->flags, NET_IF_UP)) {
 		return 0;
 	}
+
+#if defined(CONFIG_NET_OFFLOAD)
+	if (net_if_is_ip_offloaded(iface)) {
+		goto done;
+	}
+#endif
 
 	/* If the L2 does not support enable just set the flag */
 	if (!net_if_l2(iface)->enable) {
@@ -2118,6 +2146,12 @@ int net_if_down(struct net_if *iface)
 	NET_DBG("iface %p", iface);
 
 	leave_mcast_all(iface);
+
+#if defined(CONFIG_NET_OFFLOAD)
+	if (net_if_is_ip_offloaded(iface)) {
+		goto done;
+	}
+#endif
 
 	/* If the L2 does not support enable just clear the flag */
 	if (!net_if_l2(iface)->enable) {

@@ -34,6 +34,10 @@ extern "C" {
  * @{
  */
 
+struct net_eth_addr {
+	u8_t addr[6];
+};
+
 #define NET_ETH_HDR(pkt) ((struct net_eth_hdr *)net_pkt_ll(pkt))
 
 #define NET_ETH_PTYPE_ARP		0x0806
@@ -43,15 +47,54 @@ extern "C" {
 
 #define NET_ETH_MINIMAL_FRAME_SIZE	60
 
-enum eth_hw_caps {
+enum ethernet_hw_caps {
 	/** TX Checksum offloading supported */
-	ETH_HW_TX_CHKSUM_OFFLOAD  = BIT(0),
+	ETHERNET_HW_TX_CHKSUM_OFFLOAD	= BIT(0),
 
 	/** RX Checksum offloading supported */
-	ETH_HW_RX_CHKSUM_OFFLOAD  = BIT(1),
+	ETHERNET_HW_RX_CHKSUM_OFFLOAD	= BIT(1),
 
 	/** VLAN supported */
-	ETH_HW_VLAN  = BIT(2),
+	ETHERNET_HW_VLAN		= BIT(2),
+
+	/** Enabling/disabling auto negotiation supported */
+	ETHERNET_AUTO_NEGOTIATION_SET	= BIT(3),
+
+	/** 10 Mbits link supported */
+	ETHERNET_LINK_10BASE_T		= BIT(4),
+
+	/** 100 Mbits link supported */
+	ETHERNET_LINK_100BASE_T		= BIT(5),
+
+	/** 1 Gbits link supported */
+	ETHERNET_LINK_1000BASE_T	= BIT(6),
+
+	/** Changing duplex (half/full) supported */
+	ETHERNET_DUPLEX_SET		= BIT(7),
+};
+
+enum ethernet_config_type {
+	ETHERNET_CONFIG_TYPE_AUTO_NEG,
+	ETHERNET_CONFIG_TYPE_LINK,
+	ETHERNET_CONFIG_TYPE_DUPLEX,
+	ETHERNET_CONFIG_TYPE_MAC_ADDRESS,
+};
+
+struct ethernet_config {
+/** @cond ignore */
+	union {
+		bool auto_negotiation;
+		bool full_duplex;
+
+		struct {
+			bool link_10bt;
+			bool link_100bt;
+			bool link_1000bt;
+		} l;
+
+		struct net_eth_addr mac_address;
+	};
+/* @endcond */
 };
 
 struct ethernet_api {
@@ -61,19 +104,31 @@ struct ethernet_api {
 	 */
 	struct net_if_api iface_api;
 
-	/** Get the device capabilities */
-	enum eth_hw_caps (*get_capabilities)(struct device *dev);
+#if defined(CONFIG_NET_STATISTICS_ETHERNET)
+	/** Collect optional ethernet specific statistics. This pointer
+	 * should be set by driver if statistics needs to be collected
+	 * for that driver.
+	 */
+	struct net_stats_eth *stats;
+#endif
 
+	/** Get the device capabilities */
+	enum ethernet_hw_caps (*get_capabilities)(struct device *dev);
+
+	/** Set specific hardware configuration */
+	int (*set_config)(struct device *dev,
+			  enum ethernet_config_type type,
+			  const struct ethernet_config *config);
+
+#if defined(CONFIG_NET_VLAN)
 	/** The IP stack will call this function when a VLAN tag is enabled
 	 * or disabled. If enable is set to true, then the VLAN tag was added,
 	 * if it is false then the tag was removed. The driver can utilize
 	 * this information if needed.
 	 */
-	int (*vlan_setup)(struct net_if *iface, u16_t tag, bool enable);
-};
-
-struct net_eth_addr {
-	u8_t addr[6];
+	int (*vlan_setup)(struct device *dev, struct net_if *iface,
+			  u16_t tag, bool enable);
+#endif /* CONFIG_NET_VLAN */
 };
 
 struct net_eth_hdr {
@@ -199,7 +254,7 @@ void net_eth_ipv6_mcast_to_mac_addr(const struct in6_addr *ipv6_addr,
  * @return Hardware capabilities
  */
 static inline
-enum eth_hw_caps net_eth_get_hw_capabilities(struct net_if *iface)
+enum ethernet_hw_caps net_eth_get_hw_capabilities(struct net_if *iface)
 {
 	const struct ethernet_api *eth =
 		net_if_get_device(iface)->driver_api;

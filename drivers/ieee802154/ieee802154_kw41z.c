@@ -24,6 +24,11 @@
 
 #include "fsl_xcvr.h"
 
+#if defined(CONFIG_NET_L2_OPENTHREAD)
+#include <net/openthread.h>
+#endif
+
+
 /*
  * For non-invasive tracing of IRQ events. Sometimes the print logs
  * will shift the timings around so this trace buffer can be used to
@@ -42,6 +47,7 @@
 
 struct kw41_dbg_trace {
 	u8_t	type;
+	u32_t	time;
 	u32_t	irqsts;
 	u32_t	phy_ctrl;
 	u32_t	seq_state;
@@ -53,6 +59,8 @@ int kw41_dbg_idx;
 #define KW_DBG_TRACE(_type, _irqsts, _phy_ctrl, _seq_state) \
 	do { \
 		kw41_dbg[kw41_dbg_idx].type = (_type); \
+		kw41_dbg[kw41_dbg_idx].time = \
+			ZLL->EVENT_TMR >> ZLL_EVENT_TMR_EVENT_TMR_SHIFT; \
 		kw41_dbg[kw41_dbg_idx].irqsts = (_irqsts); \
 		kw41_dbg[kw41_dbg_idx].phy_ctrl = (_phy_ctrl); \
 		kw41_dbg[kw41_dbg_idx].seq_state = (_seq_state); \
@@ -81,11 +89,7 @@ int kw41_dbg_idx;
 #define KW41Z_OUTPUT_POWER_MAX		2
 #define KW41Z_OUTPUT_POWER_MIN		(-19)
 
-/*
- * When ACK offload is implemented in the 15.4 stack we can enable
- * things here.
- */
-#define KW41Z_AUTOACK_ENABLED		0
+#define IEEE802154_ACK_LENGTH		5
 
 #define BM_ZLL_IRQSTS_TMRxMSK (ZLL_IRQSTS_TMR1MSK_MASK | \
 				ZLL_IRQSTS_TMR2MSK_MASK | \
@@ -470,7 +474,14 @@ static inline void kw41z_rx(struct kw41z_context *kw41z, u8_t len)
 
 	SYS_LOG_DBG("ENTRY: len: %d", len);
 
+#if defined(CONFIG_NET_L2_OPENTHREAD)
+	/*
+	 * OpenThread stack expects a receive frame to include the FCS
+	 */
+	pkt_len = len;
+#else
 	pkt_len = len - KW41Z_FCS_LENGTH;
+#endif
 
 	pkt = net_pkt_get_reserve_rx(0, K_NO_WAIT);
 	if (!pkt) {
@@ -518,11 +529,6 @@ static inline void kw41z_rx(struct kw41z_context *kw41z, u8_t len)
 
 	net_buf_add(frag, pkt_len);
 
-	if (ieee802154_radio_handle_ack(kw41z->iface, pkt) == NET_OK) {
-		SYS_LOG_DBG("ACK packet handled");
-		goto out;
-	}
-
 	hw_lqi = (ZLL->LQI_AND_RSSI & ZLL_LQI_AND_RSSI_LQI_VALUE_MASK) >>
 		 ZLL_LQI_AND_RSSI_LQI_VALUE_SHIFT;
 	net_pkt_set_ieee802154_lqi(pkt, kw41z_convert_lqi(hw_lqi));
@@ -546,9 +552,9 @@ static int kw41z_tx(struct device *dev, struct net_pkt *pkt,
 {
 	struct kw41z_context *kw41z = dev->driver_data;
 	u8_t payload_len = net_pkt_ll_reserve(pkt) + frag->len;
-#if KW41Z_AUTOACK_ENABLED
 	u32_t tx_timeout;
-#endif
+	u8_t xcvseq;
+	int key;
 
 	/*
 	 * The transmit requests are preceded by the CCA request. On
@@ -564,6 +570,12 @@ static int kw41z_tx(struct device *dev, struct net_pkt *pkt,
 		SYS_LOG_ERR("Payload too long");
 		return 0;
 	}
+
+	key = irq_lock();
+
+	/* Disable the 802.15.4 radio IRQ */
+	ZLL->PHY_CTRL |= ZLL_PHY_CTRL_TRCV_MSK_MASK;
+	kw41z_disable_seq_irq();
 
 #if CONFIG_SOC_MKW41Z4
 	((u8_t *)ZLL->PKT_BUFFER_TX)[0] = payload_len + KW41Z_FCS_LENGTH;
@@ -586,32 +598,38 @@ static int kw41z_tx(struct device *dev, struct net_pkt *pkt,
 	 * Current Zephyr 802.15.4 stack doesn't support ACK offload
 	 */
 
-#if KW41Z_AUTOACK_ENABLED
 	/* Perform automatic reception of ACK frame, if required */
 	if (ieee802154_is_ar_flag_set(pkt)) {
 		tx_timeout = kw41z->tx_warmup_time + KW41Z_SHR_PHY_TIME +
 				 payload_len * KW41Z_PER_BYTE_TIME + 10 +
 				 KW41Z_ACK_WAIT_TIME;
 
-		SYS_LOG_DBG("AUTOACK_ENABLED: len: %d, timeout: %d, seq: %d",
+		SYS_LOG_DBG("AUTOACK ENABLED: len: %d, timeout: %d, seq: %d",
 			payload_len, tx_timeout,
 			(frag->data - net_pkt_ll_reserve(pkt))[2]);
 
 		kw41z_tmr3_set_timeout(tx_timeout);
 		ZLL->PHY_CTRL |= ZLL_PHY_CTRL_RXACKRQD_MASK;
-		kw41z_set_seq_state(KW41Z_STATE_TXRX);
-	} else
-#endif
-	{
-		SYS_LOG_DBG("AUTOACK disabled: len: %d, seq: %d",
+		xcvseq = KW41Z_STATE_TXRX;
+	} else {
+		SYS_LOG_DBG("AUTOACK DISABLED: len: %d, seq: %d",
 			payload_len, (frag->data - net_pkt_ll_reserve(pkt))[2]);
 
 		ZLL->PHY_CTRL &= ~ZLL_PHY_CTRL_RXACKRQD_MASK;
-		kw41z_set_seq_state(KW41Z_STATE_TX);
+		xcvseq = KW41Z_STATE_TX;
 	}
 
 	kw41z_enable_seq_irq();
-
+	/*
+	 * PHY_CTRL is sensitive to multiple writes that can kick off
+	 * the sequencer engine causing TX with AR request to send the
+	 * TX frame multiple times.
+	 *
+	 * To minimize, ensure there is only one write to PHY_CTRL with
+	 * TXRX sequence enable and the 802.15.4 radio IRQ.
+	 */
+	ZLL->PHY_CTRL = (ZLL->PHY_CTRL & ~ZLL_PHY_CTRL_TRCV_MSK_MASK) | xcvseq;
+	irq_unlock(key);
 	k_sem_take(&kw41z->seq_sync, K_FOREVER);
 
 	SYS_LOG_DBG("seq_retval: %d", kw41z->seq_retval);
@@ -669,25 +687,27 @@ static void kw41z_isr(int unused)
 		rx_len = (irqsts & ZLL_IRQSTS_RX_FRAME_LENGTH_MASK)
 			>> ZLL_IRQSTS_RX_FRAME_LENGTH_SHIFT;
 
-		SYS_LOG_DBG("WMRK irq: seq_state: 0x%08x, rx_len: %d",
-			seq_state, rx_len);
-
 		KW_DBG_TRACE(KW41_DBG_TRACE_WTRM, irqsts,
 			(unsigned int)ZLL->PHY_CTRL, seq_state);
 
-		/*
-		 * Assume the RX includes an auto-ACK so set the timer to
-		 * include the RX frame size, crc, IFS, and ACK length and
-		 * convert to symbols.
-		 *
-		 * IFS is 12 symbols
-		 *
-		 * ACK frame is 11 bytes: 4 preamble, 1 start of frame, 1 frame
-		 * length, 2 frame control, 1 sequence, 2 FCS. Times two to
-		 * convert to symbols.
-		 */
-		rx_len = rx_len * 2 + 12 + 22 + 2;
-		kw41z_tmr3_set_timeout(rx_len);
+		if (rx_len > IEEE802154_ACK_LENGTH) {
+
+			SYS_LOG_DBG("WMRK irq: seq_state: 0x%08x, rx_len: %d",
+				seq_state, rx_len);
+			/*
+			 * Assume the RX includes an auto-ACK so set the
+			 * timer to include the RX frame size, crc, IFS,
+			 * and ACK length and convert to symbols.
+			 *
+			 * IFS is 12 symbols
+			 *
+			 * ACK frame is 11 bytes: 4 preamble, 1 start of
+			 * frame, 1 frame length, 2 frame control,
+			 * 1 sequence, 2 FCS. Times two to convert to symbols.
+			 */
+			rx_len = rx_len * 2 + 12 + 22 + 2;
+			kw41z_tmr3_set_timeout(rx_len);
+		}
 		restart_rx = 0;
 	}
 
@@ -726,6 +746,7 @@ static void kw41z_isr(int unused)
 				/* TODO: What is the right error for no ACK? */
 				atomic_set(&kw41z_context_data.seq_retval,
 					   -EBUSY);
+				k_sem_give(&kw41z_context_data.seq_sync);
 			}
 		} else {
 			kw41z_isr_seq_cleanup();
@@ -823,7 +844,7 @@ static void kw41z_isr(int unused)
 	/* Restart RX */
 	if (restart_rx) {
 		SYS_LOG_DBG("RESET RX");
-
+		kw41z_phy_abort();
 		kw41z_set_seq_state(KW41Z_STATE_RX);
 		kw41z_enable_seq_irq();
 	}
@@ -879,15 +900,14 @@ static int kw41z_init(struct device *dev)
 			ZLL_PHY_CTRL_CCAMSK_MASK		|
 			ZLL_PHY_CTRL_RXMSK_MASK			|
 			ZLL_PHY_CTRL_TXMSK_MASK			|
+			ZLL_PHY_CTRL_CCABFRTX_MASK		|
 			ZLL_PHY_CTRL_SEQMSK_MASK;
 
 #if CONFIG_SOC_MKW41Z4
 	ZLL->PHY_CTRL |= ZLL_IRQSTS_WAKE_IRQ_MASK;
 #endif
 
-#if KW41Z_AUTOACK_ENABLED
 	ZLL->PHY_CTRL |= ZLL_PHY_CTRL_AUTOACK_MASK;
-#endif
 
 	/*
 	 * Clear all PP IRQ bits to avoid unexpected interrupts immediately
@@ -904,6 +924,7 @@ static int kw41z_init(struct device *dev)
 	ZLL->RX_FRAME_FILTER = ZLL_RX_FRAME_FILTER_FRM_VER_FILTER(3)	|
 			       ZLL_RX_FRAME_FILTER_CMD_FT_MASK		|
 			       ZLL_RX_FRAME_FILTER_DATA_FT_MASK		|
+			       ZLL_RX_FRAME_FILTER_ACK_FT_MASK		|
 			       ZLL_RX_FRAME_FILTER_BEACON_FT_MASK;
 
 	/* Set prescaller to obtain 1 symbol (16us) timebase */
@@ -994,6 +1015,20 @@ static struct ieee802154_radio_api kw41z_radio_api = {
 	.tx			= kw41z_tx,
 };
 
+#if defined(CONFIG_NET_L2_IEEE802154)
+
+#define L2 IEEE802154_L2
+#define L2_CTX_TYPE NET_L2_GET_CTX_TYPE(IEEE802154_L2)
+#define MTU KW41Z_PSDU_LENGTH
+
+#elif defined(CONFIG_NET_L2_OPENTHREAD)
+
+#define L2 OPENTHREAD_L2
+#define L2_CTX_TYPE NET_L2_GET_CTX_TYPE(OPENTHREAD_L2)
+#define MTU 1280
+
+#endif
+
 NET_DEVICE_INIT(
 	kw41z,                              /* Device Name */
 	CONFIG_IEEE802154_KW41Z_DRV_NAME,   /* Driver Name */
@@ -1002,6 +1037,6 @@ NET_DEVICE_INIT(
 	NULL,                               /* Configuration info */
 	CONFIG_IEEE802154_KW41Z_INIT_PRIO,  /* Initial priority */
 	&kw41z_radio_api,                   /* API interface functions */
-	IEEE802154_L2,                      /* L2 */
-	NET_L2_GET_CTX_TYPE(IEEE802154_L2), /* L2 context type */
-	KW41Z_PSDU_LENGTH);                 /* MTU size */
+	L2,                                 /* L2 */
+	L2_CTX_TYPE,                        /* L2 context type */
+	MTU);                               /* MTU size */

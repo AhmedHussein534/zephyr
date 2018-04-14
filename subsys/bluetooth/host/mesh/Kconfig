@@ -360,6 +360,41 @@ config BT_MESH_FRIEND_SEG_RX
 
 endif # BT_MESH_FRIEND
 
+config BT_MESH_ROUTING
+	bool "Routing support"
+
+if BT_MESH_ROUTING
+
+config BT_MESH_ROUTING_RREP_WAIT
+	int "Waiting Interval for RREP in ms"
+	range 0 10000
+	default 5000
+	help
+	  Use this option to set the Waiting Interval for RREP if this node is the source node.
+
+config BT_MESH_ROUTING_ENTRY_LIFETIME
+	int "Lifetime of each entry in the routing table in seconds"
+	range 0 2000
+	default 60
+	help
+	  Use this option to set the lifetime of each entry in the routing table.
+
+config BT_MESH_ROUTING_MAX_RING_TTL
+	int "Max TTL value for ring search"
+	range 0 1023
+	default 20
+	help
+	  Use this option to set the Max TTL value for ring search.
+
+config BT_MESH_ROUTING_RREQ_WAIT
+	int "Destination RREQ waiting interval in ms"
+	range 0 1023
+	default 1000
+	help
+	  Use this option to set the Waiting Interval for RREQ if this node is a  the destination node.
+
+endif #BT_MESH_ROUTING
+
 config BT_MESH_CFG_CLI
 	bool "Support for Configuration Client Model"
 	help
@@ -387,14 +422,6 @@ config BT_MESH_DEBUG
 	  Mesh functionality.
 
 if BT_MESH_DEBUG
-
-config BT_MESH_DEBUG_USE_ID_ADDR
-	bool "Use identity address for all advertising"
-	help
-	  This option forces the usage of the local identity address for
-	  all advertising. This can be a help for debugging (analyzing
-	  traces), however it should never be enabled for a production
-	  build as it compromises the privacy of the device.
 
 config BT_MESH_DEBUG_NET
 	bool "Network layer debug"
@@ -462,6 +489,11 @@ config BT_MESH_DEBUG_PROXY
 	help
 	  Use this option to enable Proxy protocol debug logs.
 
-endif # BT_MESH_DEBUG
+config BT_MESH_DEBUG_ROUTING
+	bool "Routing debug"
+	help
+	  Use this option to enable routing debug logs for the
+	  Bluetooth Mesh functionality.
 
+endif # BT_MESH_DEBUG
 endif # BT_MESH

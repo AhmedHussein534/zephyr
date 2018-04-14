@@ -898,8 +898,8 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct net_buf *buf,
 	}
 
 	/* Deliver to local network interface if necessary */
-	if (bt_mesh_fixed_group_match(tx->ctx->addr) ||
-	    bt_mesh_elem_find(tx->ctx->addr)) {
+	if ((bt_mesh_fixed_group_match(tx->ctx->addr) ||
+	    bt_mesh_elem_find(tx->ctx->addr)) && (tx->routing == false)) {
 		if (cb && cb->start) {
 			cb->start(0, 0, cb_data);
 		}

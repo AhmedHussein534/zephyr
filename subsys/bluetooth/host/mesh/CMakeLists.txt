@@ -17,6 +17,10 @@ zephyr_library_sources_ifdef(CONFIG_BT_MESH_LOW_POWER lpn.c)
 
 zephyr_library_sources_ifdef(CONFIG_BT_MESH_FRIEND friend.c)
 
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_ROUTING ctrMsg.c)
+
+zephyr_library_sources_ifdef(CONFIG_BT_MESH_ROUTING routing_table.c)
+
 zephyr_library_sources_ifdef(CONFIG_BT_MESH_PROV prov.c)
 
 zephyr_library_sources_ifdef(CONFIG_BT_MESH_PROXY proxy.c)

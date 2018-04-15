@@ -32,9 +32,10 @@
 #include "access.h"
 #include "foundation.h"
 #include "transport.h"
-#include "routing_table.h"
-#include "ctrMsg.h"
 
+// Surround with configuration parameter
+#include "routing_table.h"
+#include "aodv_control_messages.h"
 
 #define AID_MASK                    ((u8_t)(BIT_MASK(6)))
 
@@ -112,7 +113,7 @@ void bt_mesh_set_hb_sub_dst(u16_t addr)
 	hb_sub_dst = addr;
 }
 
-static int send_unseg(struct bt_mesh_net_tx *tx, struct net_buf_simple *sdu,
+int send_unseg(struct bt_mesh_net_tx *tx, struct net_buf_simple *sdu,
 		      const struct bt_mesh_send_cb *cb, void *cb_data)
 {
 	struct net_buf *buf;
@@ -447,6 +448,9 @@ struct bt_mesh_app_key *bt_mesh_app_key_find(u16_t app_idx)
 int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 		       const struct bt_mesh_send_cb *cb, void *cb_data)
 {
+	const u8_t *key=NULL;
+	u8_t *ad;
+	int err;
 	if(!bt_mesh_elem_find(tx->ctx->addr) ){
 		if(!bt_mesh_trans_ring_search(tx)){
 			BT_ERR("Destination not found\n");
@@ -456,12 +460,6 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 			return 0;
 		}
 	}
-	else{
-	}
-
-	const u8_t *key;
-	u8_t *ad;
-	int err;
 
 	if (net_buf_simple_tailroom(msg) < 4) {
 		BT_ERR("Insufficient tailroom for Transport MIC");
@@ -479,14 +477,13 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	if (tx->ctx->app_idx == BT_MESH_KEY_DEV) {
 		key = bt_mesh.dev_key;
 		tx->aid = 0;
-	} else {
+	}
+	else if(tx->ctx->app_idx != BT_MESH_KEY_UNUSED){
 		struct bt_mesh_app_key *app_key;
-
 		app_key = bt_mesh_app_key_find(tx->ctx->app_idx);
 		if (!app_key) {
 			return -EINVAL;
 		}
-
 		if (tx->sub->kr_phase == BT_MESH_KR_PHASE_2 &&
 		    app_key->updated) {
 			key = app_key->keys[1].val;
@@ -508,13 +505,15 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	} else {
 		ad = NULL;
 	}
-
-	err = bt_mesh_app_encrypt(key, tx->ctx->app_idx == BT_MESH_KEY_DEV,
-				  tx->aszmic, msg, ad, tx->src,
-				  tx->ctx->addr, bt_mesh.seq,
-				  BT_MESH_NET_IVI_TX);
+	if(tx->ctx->app_idx != BT_MESH_KEY_UNUSED){
+		err = bt_mesh_app_encrypt(key, tx->ctx->app_idx == BT_MESH_KEY_DEV,
+						tx->aszmic, msg, ad, tx->src,
+						tx->ctx->addr, bt_mesh.seq,
+						BT_MESH_NET_IVI_TX);
 	if (err) {
 		return err;
+	}
+
 	}
 
 	if (tx->ctx->send_rel) {
@@ -523,7 +522,7 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 		err = send_unseg(tx, msg, cb, cb_data);
 	}
 
-return err;
+	return err;
 }
 
 int bt_mesh_trans_resend(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
@@ -801,14 +800,6 @@ static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 		    struct net_buf_simple *buf, u64_t *seq_auth)
 {
 	u8_t ctl_op = TRANS_CTL_OP(&hdr);
-	printk("OPCODE :%04x\n",ctl_op);
-	printk("Data recevied :%s \n",bt_hex(buf->data,buf->len));
-	printk("\n\n Valid List : \n");
-	view_valid_list();
-	printk("\n\n Invalid List : \n");
-	view_invalid_list();
-	printk("Source Address - Network Layer : %04x\n", rx->ctx.addr);
-	printk("Destination Address - Network Layer : %04x\n", rx->dst);
 
 	BT_DBG("OpCode 0x%02x len %u", ctl_op, buf->len);
 	switch (ctl_op) {
@@ -825,15 +816,13 @@ static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 		switch(ctl_op){
 			case TRANS_CTL_OP_RREQ:
 				if(!bt_mesh_elem_find(rx -> ctx.addr)){
-					return RREQ_recv(rx,buf);
+					return bt_mesh_trans_rreq_recv(rx,buf);
 				}
 		 case TRANS_CTL_OP_RREP:
-			printk("CTL_RECV : RREP Received\n");
-			return RREP_recv(rx,buf);
+			return bt_mesh_trans_rrep_recv(rx,buf);
 		case TRANS_CTL_OP_RWAIT:
-			printk("CTL RECV : RWAIT recevied\n");
-		 	RWAIT_recv(rx,buf);
-			return 0;
+		 	bt_mesh_trans_rwait_recv(rx,buf);
+			return 0; /* RANA: */
 		}
 	}
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND) && !bt_mesh_lpn_established()) {
@@ -1254,7 +1243,6 @@ static struct seg_rx *seg_rx_alloc(struct bt_mesh_net_rx *net_rx,
 static int trans_seg(struct net_buf_simple *buf, struct bt_mesh_net_rx *net_rx,
 		     enum bt_mesh_friend_pdu_type *pdu_type, u64_t *seq_auth)
 {
-	printk("seg recv\n");
 	struct seg_rx *rx;
 	u8_t *hdr = buf->data;
 	u16_t seq_zero;
@@ -1550,16 +1538,8 @@ void bt_mesh_trans_init(void)
 				       (i * CONFIG_BT_MESH_RX_SDU_MAX));
 		seg_rx[i].buf.data = seg_rx[i].buf.__buf;
 	}
-	RREP_list_init();
-	/*
-	struct bt_mesh_route_entry entry;
-	entry.source_address = 0x0b0b;
-	entry.destination_address = 0x0e0e;
-	entry.next_hop = 0x0e0e;
-	entry.hop_count = 2;
-	entry.destination_sequence_number = 0xFFFFFF;
-	create_entry_valid(&entry);
-*/
+
+	bt_mesh_trans_rrep_rwait_list_init(); /* Initialize the rrep_list */
 }
 
 void bt_mesh_rpl_clear(void)

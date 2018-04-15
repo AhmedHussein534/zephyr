@@ -9,7 +9,7 @@
 #include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/net.h>
 #include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/transport.h>
 #include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/routing_table.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/ctrMsg.h>
+#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/aodv_control_messages.h>
 
 #define CID_INTEL 0x0002 /*Company identifier assigned by the Bluetooth SIG*/
 #define NODE_ADDR 0x0b0c /*Unicast Address*/

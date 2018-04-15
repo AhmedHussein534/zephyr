@@ -1,49 +1,173 @@
+/** @file routing_table.c
+ *  @brief Reverse and forward tables constructed by AODV.
+ *
+ *  @bug No known bugs.
+ */
+
+/* -- Includes -- */
 #include <zephyr.h>
-#include <misc/slist.h> /*include slist*/
-#include <string.h>   //memset function to initialize by zeros
+#include <misc/slist.h> 
+#include <string.h>
 #include "routing_table.h"
 
-sys_slist_t valid_list;                                                         /*global linked list for  entries */
-K_SEM_DEFINE(valid_list_sem, 1, 1);                                             /*Binary semaphore for  linked list critical section*/
-sys_slist_t invalid_list;                                                       /*global linked list for in entries */
-K_SEM_DEFINE(invalid_list_sem, 1, 1);                                           /*Binary semaphore for in list critical section */
-struct k_mem_slab routing_table_slab;                                           /*Memory slab for entries */
-K_MEM_SLAB_DEFINE(routing_table_slab, ENTRY_SIZE, NUMBER_OF_ENTRIES, ALLIGNED); /*Macro to define memory slab*/
+/** @brief Linked list holding pointers to the valid entries of the routing tables. */
+sys_slist_t valid_list;
+/** @brief Linked list holding pointers to the invalid entries of the routing tables. */
+sys_slist_t invalid_list;
 
-void routing_table_init()
+K_SEM_DEFINE(valid_list_sem, 1, 1); 	/* Binary semaphore for valid list */
+K_SEM_DEFINE(invalid_list_sem, 1, 1); /* Binary semaphore for invalid list */
+struct k_mem_slab routing_table_slab; /* Memory slab for all entries */
+K_MEM_SLAB_DEFINE(routing_table_slab, ENTRY_SIZE, NUMBER_OF_ENTRIES, ALLIGNED);
+
+/* FUNCTIONS */
+
+/** @brief Initializing the valid and invalid lists */
+void bt_mesh_routing_table_init()
 {
 	sys_slist_init(&valid_list);
 	sys_slist_init(&invalid_list);
 }
 
-void delete_entry_valid(struct k_timer *timer_id)
-{
-	struct bt_mesh_route_entry *entry = CONTAINER_OF(timer_id, struct bt_mesh_route_entry, lifetime);       /* container of timer_id to be deleted*/
+/* Create Entry Functions */
 
-	k_sem_take(&valid_list_sem, K_FOREVER);                                                                 /* take semaphore */
-	sys_slist_find_and_remove(&valid_list, &entry->node);                                                   /*delete node from linked list */
-	k_sem_give(&valid_list_sem);                                                                            /*return semaphore */
-	k_mem_slab_free(&routing_table_slab, (void **)&entry);                                                  /*free space in slab*/
-	printk("valid Entry Deleted \n");
+/**
+ *	@brief Create entry in the valid list.
+ *
+ *	@param entry_data: Pointer to structure of type bt_mesh_route_entry
+ *										 holding data to be stored.
+ *
+ *	@return True when allocation succeeds, False when no space is available.
+ */
+bool bt_mesh_create_entry_valid(struct bt_mesh_route_entry *entry_data)
+{
+	struct bt_mesh_route_entry *entry_location = NULL;
+
+	/* if space found in slab, Allocate new node */
+	if (k_mem_slab_alloc(&routing_table_slab, (void **)&entry_location, ALLOCATION_INTERVAL) == 0) {
+		memset(entry_location, 0, ENTRY_SIZE);                  /* Initializing with zeros */
+		k_sem_take(&valid_list_sem, K_FOREVER);                 /*take semaphore */
+		sys_slist_append(&valid_list, &entry_location->node);   /*insert node in linkedlist */
+		k_sem_give(&valid_list_sem);
+	} else    {
+		printk("Memory Allocation timeout \n");
+		return false;
+	}
+
+	/* Fill the entry with passed data */
+	entry_location->source_address                    = entry_data->source_address;
+	entry_location->destination_address               = entry_data->destination_address;
+	entry_location->destination_sequence_number       = entry_data->destination_sequence_number;
+	entry_location->hop_count                         = entry_data->hop_count;
+	entry_location->next_hop                          = entry_data->next_hop;
+	entry_location->repairable                        = entry_data->repairable;
+	entry_location->source_number_of_elements         = entry_data->source_number_of_elements;
+	entry_location->destination_number_of_elements    = entry_data->destination_number_of_elements;
+
+	/* Start the lifetime timer */
+	k_timer_init(&entry_location->lifetime, bt_mesh_delete_entry_valid, NULL);
+	k_timer_start(&entry_location->lifetime, LIFETIME, 0);
+	return true;
 }
 
-void delete_entry_invalid(struct k_timer *timer_id)
+/**
+ *	@brief Create entry in the invalid list.
+ *
+ *	@param entry_data: Pointer to structure of type bt_mesh_route_entry
+ *										 holding data to be stored.
+ *
+ *	@return True when allocation succeeds, False when no space is available.
+ */
+bool bt_mesh_create_entry_invalid(struct bt_mesh_route_entry *entry_data)
 {
-	struct bt_mesh_route_entry *entry = CONTAINER_OF(timer_id, struct bt_mesh_route_entry, lifetime);       /* container of timer_id to be deleted*/
+	struct bt_mesh_route_entry *entry_location = NULL;
+	/*if space found in slab, Allocate new node */
+	if (k_mem_slab_alloc(&routing_table_slab, (void **)&entry_location, ALLOCATION_INTERVAL) == 0) {
+		memset(entry_location, 0, ENTRY_SIZE);                  /* Initializing with zeros */
+		k_sem_take(&invalid_list_sem, K_FOREVER);               /*take semaphore */
+		sys_slist_append(&invalid_list, &entry_location->node); /*insert node in linkedlist */
+		k_sem_give(&invalid_list_sem);
+	} else    {
+		printk("Memory Allocation timeout \n");
+		return false;
+	}
 
-	k_sem_take(&invalid_list_sem, K_FOREVER);                                                               /* take semaphore */
-	sys_slist_find_and_remove(&invalid_list, &entry->node);                                                 /*delete node from linked list */
-	k_sem_give(&invalid_list_sem);                                                                          /*return semaphore */
-	k_mem_slab_free(&routing_table_slab, (void **)&entry);                                                  /*free space in slab*/
-	printk("Invalid Entry Deleted \n");
+	/* Fill the entry with passed data */
+	entry_location->source_address                    = entry_data->source_address;
+	entry_location->destination_address               = entry_data->destination_address;
+	entry_location->destination_sequence_number       = entry_data->destination_sequence_number;
+	entry_location->hop_count                         = entry_data->hop_count;
+	entry_location->next_hop                          = entry_data->next_hop;
+	entry_location->repairable                        = entry_data->repairable;
+	entry_location->source_number_of_elements         = entry_data->source_number_of_elements;
+	entry_location->destination_number_of_elements    = entry_data->destination_number_of_elements;
+
+	/* Start the lifetime timer */
+	k_timer_init(&entry_location->lifetime, bt_mesh_delete_entry_invalid, NULL);
+	k_timer_start(&entry_location->lifetime, LIFETIME, 0);
+	return true;
 }
 
-bool search_valid_destination(u16_t source_address, u16_t destination_address, struct bt_mesh_route_entry **entry)
+/**
+ *	@brief Create entry in the invalid list.
+ *
+ *	@param entry_data: Pointer to structure of type bt_mesh_route_entry
+ *										 holding data to be stored.
+ *	@param timer_id: Pointer to structure of type k_timer holding lifetime.
+ *
+ *	@return True when allocation succeeds, False when no space is available.
+ */
+bool bt_mesh_create_entry_invalid_with_cb(struct bt_mesh_route_entry *entry_data, \
+				  void (*timer_cb)(struct k_timer *timer_id))
+{
+	struct bt_mesh_route_entry *entry_location = NULL;
+
+	/* if space found in slab, Allocate new node */
+	if (k_mem_slab_alloc(&routing_table_slab, (void **)&entry_location, ALLOCATION_INTERVAL) == 0) {
+		memset(entry_location, 0, ENTRY_SIZE);                  /* Initializing with zeros */
+		k_sem_take(&invalid_list_sem, K_FOREVER);               /*take semaphore */
+		sys_slist_append(&invalid_list, &entry_location->node); /*insert node in linkedlist */
+		k_sem_give(&invalid_list_sem);
+	} else    {
+		printk("Memory Allocation timeout \n");
+		return false;
+	}
+	/* Fill the entry with passed data */
+	entry_location->source_address                    = entry_data->source_address;
+	entry_location->destination_address               = entry_data->destination_address;
+	entry_location->destination_sequence_number       = entry_data->destination_sequence_number;
+	entry_location->hop_count                         = entry_data->hop_count;
+	entry_location->next_hop                          = entry_data->next_hop;
+	entry_location->repairable                        = entry_data->repairable;
+	entry_location->source_number_of_elements         = entry_data->source_number_of_elements;
+	entry_location->destination_number_of_elements    = entry_data->destination_number_of_elements;
+	/* Start the lifetime timer */
+	k_timer_init(&entry_location->lifetime, timer_cb, NULL);
+	k_timer_start(&entry_location->lifetime, RREQ_INTERVAL_WAIT, 0);
+	return true;
+}
+
+
+/* Search Entry Functions */
+
+/**
+*	@brief Search in the valid list by source and destination.
+*
+*	@param source_address
+*	@param destination_address
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (3rd param).
+*/
+bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_address, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
-	k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
+	k_sem_take(&valid_list_sem, K_FOREVER);
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node){
+		/* Search for the destination and source addresses in their range of elements */
 		if ((destination_address >= entry1->destination_address) &&
 		    (destination_address < (entry1->destination_address + entry1->destination_number_of_elements)) &&
 		    (source_address >= entry1->source_address) &&
@@ -58,11 +182,22 @@ bool search_valid_destination(u16_t source_address, u16_t destination_address, s
 	return false;
 }
 
-bool search_valid_destination_without_source(u16_t destination_address, struct bt_mesh_route_entry **entry)
+/**
+*	@brief Search in the valid list by destination only.
+*
+*	@param destination_address
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (3rd param).
+*/
+bool bt_mesh_search_valid_destination_without_source(u16_t destination_address, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 	k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node){
+		/* Search for the destination in range of its elements */
 		if ((destination_address >= entry1->destination_address) &&
 		    (destination_address < entry1->destination_address + entry1->destination_number_of_elements)) {
 			k_sem_give(&valid_list_sem);
@@ -75,11 +210,22 @@ bool search_valid_destination_without_source(u16_t destination_address, struct b
 	return false;
 }
 
-bool search_valid_source_without_destination(u16_t source_address, struct bt_mesh_route_entry **entry)
+/**
+*	@brief Search in the valid list by source only.
+*
+*	@param source_address
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (3rd param).
+*/
+bool bt_mesh_search_valid_source_without_destination(u16_t source_address, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 	k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node){
+		/* Search for the destination in range of its elements */
 		if ((source_address >= entry1->source_address) &&
 		    (source_address < entry1->source_address + entry1->source_number_of_elements)) {
 			k_sem_give(&valid_list_sem);
@@ -92,12 +238,24 @@ bool search_valid_source_without_destination(u16_t source_address, struct bt_mes
 	return false;
 }
 
-bool search_invalid_destination(u16_t source_address, u16_t destination_address, struct bt_mesh_route_entry **entry)
+/**
+*	@brief Search in the invalid list by source and destination.
+*
+*	@param source_address
+*	@param destination_address
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (3rd param).
+*/
+bool bt_mesh_search_invalid_destination(u16_t source_address, u16_t destination_address, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
 	k_sem_take(&invalid_list_sem, K_FOREVER); /*take semaphore */
 	SYS_SLIST_FOR_EACH_CONTAINER(&invalid_list, entry1, node){
+		/* Search for the destination and source in range of their elements */
 		if ((destination_address >= entry1->destination_address && destination_address < entry1->destination_address + entry1->destination_number_of_elements)
 		    && (source_address >= entry1->source_address && source_address < entry1->source_address + entry1->source_number_of_elements)) {
 			k_sem_give(&invalid_list_sem);
@@ -110,12 +268,23 @@ bool search_invalid_destination(u16_t source_address, u16_t destination_address,
 	return false;
 }
 
-bool search_invalid_destination_without_source(u16_t destination_address, struct bt_mesh_route_entry **entry)
+/**
+*	@brief Search in the valid list by destination only.
+*
+*	@param destination_address
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (3rd param).
+*/
+bool bt_mesh_search_invalid_destination_without_source(u16_t destination_address, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
 	k_sem_take(&invalid_list_sem, K_FOREVER);
 	SYS_SLIST_FOR_EACH_CONTAINER(&invalid_list, entry1, node){
+		/* Search for the destination in range of its elements */
 		if ((destination_address >= entry1->destination_address) &&
 		    (destination_address < entry1->destination_address + entry1->destination_number_of_elements)) {
 			k_sem_give(&invalid_list_sem);
@@ -128,12 +297,23 @@ bool search_invalid_destination_without_source(u16_t destination_address, struct
 	return false;
 }
 
-bool search_invalid_source_without_destination(u16_t source_address, struct bt_mesh_route_entry **entry)
+/**
+*	@brief Search in the invalid list by source only.
+*
+*	@param source_address
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (3rd param).
+*/
+bool bt_mesh_search_invalid_source_without_destination(u16_t source_address, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
 	k_sem_take(&invalid_list_sem, K_FOREVER);
 	SYS_SLIST_FOR_EACH_CONTAINER(&invalid_list, entry1, node){
+		/* Search for the source in range of its elements */
 		if ((source_address >= entry1->source_address) &&
 		    (source_address < entry1->source_address + entry1->source_number_of_elements)) {
 			k_sem_give(&invalid_list_sem);
@@ -146,7 +326,19 @@ bool search_invalid_source_without_destination(u16_t source_address, struct bt_m
 	return false;
 }
 
-bool search_valid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, struct bt_mesh_route_entry **entry)
+/**
+*	@brief Search in the valid list by source and destination with range of destination elements.
+*
+*	@param source_address
+*	@param destination_address
+*	@param destination_number_of_elements
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (3rd param).
+*/
+bool bt_mesh_search_valid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -165,7 +357,19 @@ bool search_valid_destination_with_range(u16_t source_address, u16_t destination
 	return false;
 }
 
-bool search_valid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, struct bt_mesh_route_entry **entry)
+/**
+*	@brief Search in the valid list by source and destination with range of source elements.
+*
+*	@param source_address
+*	@param destination_address
+*	@param destination_number_of_elements
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (3rd param).
+*/
+bool bt_mesh_search_valid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -184,7 +388,19 @@ bool search_valid_source_with_range(u16_t source_address, u16_t destination_addr
 	return false;
 }
 
-bool search_invalid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, struct bt_mesh_route_entry **entry)
+/**
+*	@brief Search in the invalid list by source and destination with range of destination elements.
+*
+*	@param source_address
+*	@param destination_address
+*	@param destination_number_of_elements
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (3rd param).
+*/
+bool bt_mesh_search_invalid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -202,7 +418,19 @@ bool search_invalid_destination_with_range(u16_t source_address, u16_t destinati
 	return false;
 }
 
-bool search_invalid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, struct bt_mesh_route_entry **entry)
+/**
+*	@brief Search in the invalid list by source and destination with range of source elements.
+*
+*	@param source_address
+*	@param destination_address
+*	@param destination_number_of_elements
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (3rd param).
+*/
+bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -220,96 +448,92 @@ bool search_invalid_source_with_range(u16_t source_address, u16_t destination_ad
 	return false;
 }
 
-bool create_entry_valid(struct bt_mesh_route_entry *entry_data)
+
+/* Delete Entry Functions */
+
+/**
+ *	@brief Delete vaild entry when lifetime expires.
+ *
+ *	@param timer_id: Pointer to struct of type k_timer holding lifetime of an entry.
+ */
+void bt_mesh_delete_entry_valid(struct k_timer *timer_id)
 {
-	struct bt_mesh_route_entry *entry_location = NULL;
-
-	if (k_mem_slab_alloc(&routing_table_slab, (void **)&entry_location, ALLOCATION_INTERVAL) == 0) { /*if space found in slab*/
-		memset(entry_location, 0, ENTRY_SIZE);                  /* Initializing with zeros */
-		k_sem_take(&valid_list_sem, K_FOREVER);                 /*take semaphore */
-		sys_slist_append(&valid_list, &entry_location->node);   /*insert node in linkedlist */
-		k_sem_give(&valid_list_sem);
-	} else    {
-		printk("Memory Allocation timeout \n");
-		return false;
-	}
-
-
-	entry_location->source_address                    = entry_data->source_address;
-	entry_location->destination_address               = entry_data->destination_address;
-	entry_location->destination_sequence_number       = entry_data->destination_sequence_number;
-	entry_location->hop_count                         = entry_data->hop_count;
-	entry_location->next_hop                          = entry_data->next_hop;
-	entry_location->repairable                        = entry_data->repairable;
-	entry_location->source_number_of_elements         = entry_data->source_number_of_elements;
-	entry_location->destination_number_of_elements    = entry_data->destination_number_of_elements;
-	k_timer_init(&entry_location->lifetime, delete_entry_valid, NULL);      /*init lifetime timer*/
-	k_timer_start(&entry_location->lifetime, LIFETIME, 0);                  /*start timer 200s for each entry */
-	return true;
+	/* container of timer_id to be deleted*/
+	struct bt_mesh_route_entry *entry = CONTAINER_OF(timer_id, struct bt_mesh_route_entry, lifetime);
+	k_sem_take(&valid_list_sem, K_FOREVER);   							/* take semaphore */
+	sys_slist_find_and_remove(&valid_list, &entry->node);   /*delete node from linked list */
+	k_sem_give(&valid_list_sem);                            /*return semaphore */
+	k_mem_slab_free(&routing_table_slab, (void **)&entry);  /*free space in slab*/
+	printk("valid Entry Deleted \n");
 }
 
-bool create_entry_invalid(struct bt_mesh_route_entry *entry_data)
+/**
+ *	@brief Delete invaild entry when lifetime expires.
+ *
+ *	@param timer_id: Pointer to struct of type k_timer holding lifetime of an entry.
+ */
+void bt_mesh_delete_entry_invalid(struct k_timer *timer_id)
 {
-	struct bt_mesh_route_entry *entry_location = NULL;
-
-	if (k_mem_slab_alloc(&routing_table_slab, (void **)&entry_location, ALLOCATION_INTERVAL) == 0) { /*if space found in slab*/
-		memset(entry_location, 0, ENTRY_SIZE);                  /* Initializing with zeros */
-		k_sem_take(&invalid_list_sem, K_FOREVER);               /*take semaphore */
-		sys_slist_append(&invalid_list, &entry_location->node); /*insert node in linkedlist */
-		k_sem_give(&invalid_list_sem);
-	} else    {
-		printk("Memory Allocation timeout \n");
-		return false;
-	}
-
-	entry_location->source_address                    = entry_data->source_address;
-	entry_location->destination_address               = entry_data->destination_address;
-	entry_location->destination_sequence_number       = entry_data->destination_sequence_number;
-	entry_location->hop_count                         = entry_data->hop_count;
-	entry_location->next_hop                          = entry_data->next_hop;
-	entry_location->repairable                        = entry_data->repairable;
-	entry_location->source_number_of_elements         = entry_data->source_number_of_elements;
-	entry_location->destination_number_of_elements    = entry_data->destination_number_of_elements;
-
-	k_timer_init(&entry_location->lifetime, delete_entry_invalid, NULL);    /*init lifetime timer*/
-	k_timer_start(&entry_location->lifetime, LIFETIME, 0);                  /*start timer 200s for each entry */
-	return true;
+	 /* container of timer_id to be deleted*/
+	struct bt_mesh_route_entry *entry = CONTAINER_OF(timer_id, struct bt_mesh_route_entry, lifetime);
+	k_sem_take(&invalid_list_sem, K_FOREVER);               /* take semaphore */
+	sys_slist_find_and_remove(&invalid_list, &entry->node); /*delete node from linked list */
+	k_sem_give(&invalid_list_sem);                          /*return semaphore */
+	k_mem_slab_free(&routing_table_slab, (void **)&entry);  /*free space in slab*/
+	printk("Invalid Entry Deleted \n");
 }
 
-bool create_entry_invalid_with_cb(struct bt_mesh_route_entry *entry_data, \
-				  void (*timer_cb)(struct k_timer *timer_id))
+/* Refresh Functions */
+
+/**
+*	@brief Refresh the lifetime timer in an entry in the valid list when data
+*				 is sent on the route.
+*
+*	@param entry: Pointer to structure of type bt_mesh_route_entry that contains
+*								the lifetime to be refreshed.
+*/
+void bt_mesh_refresh_lifetime_valid(struct bt_mesh_route_entry *entry)
 {
-	struct bt_mesh_route_entry *entry_location = NULL;
-
-	if (k_mem_slab_alloc(&routing_table_slab, (void **)&entry_location, ALLOCATION_INTERVAL) == 0) { /*if space found in slab*/
-		memset(entry_location, 0, ENTRY_SIZE);                  /* Initializing with zeros */
-		k_sem_take(&invalid_list_sem, K_FOREVER);               /*take semaphore */
-		sys_slist_append(&invalid_list, &entry_location->node); /*insert node in linkedlist */
-		k_sem_give(&invalid_list_sem);
-	} else    {
-		printk("Memory Allocation timeout \n");
-		return false;
-	}
-
-	entry_location->source_address                    = entry_data->source_address;
-	entry_location->destination_address               = entry_data->destination_address;
-	entry_location->destination_sequence_number       = entry_data->destination_sequence_number;
-	entry_location->hop_count                         = entry_data->hop_count;
-	entry_location->next_hop                          = entry_data->next_hop;
-	entry_location->repairable                        = entry_data->repairable;
-	entry_location->source_number_of_elements         = entry_data->source_number_of_elements;
-	entry_location->destination_number_of_elements    = entry_data->destination_number_of_elements;
-
-	k_timer_init(&entry_location->lifetime, timer_cb, NULL);
-	k_timer_start(&entry_location->lifetime, RREQ_INTERVAL_WAIT, 0);
-	return true;
+	k_timer_stop(&entry->lifetime);
+	struct k_timer temp;
+	entry->lifetime = temp;
+	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_valid, NULL);
+	k_timer_start(&entry->lifetime, LIFETIME, 0);
+	printk("Lifetime of valid entry refreshed\n");
 }
 
-bool validate_route(u16_t source_address, u16_t destination_address)
+/**
+*	@brief Refresh the lifetime timer in an entry in the invalid list when data
+*				 is sent on the route.
+*
+*	@param entry: Pointer to structure of type bt_mesh_route_entry that contains
+*								the lifetime to be refreshed.
+*/
+void bt_mesh_refresh_lifetime_invalid(struct bt_mesh_route_entry *entry)
+{
+	k_timer_stop(&entry->lifetime);
+	struct k_timer temp;
+	entry->lifetime = temp;
+	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_invalid, NULL);
+	k_timer_start(&entry->lifetime, LIFETIME, 0);
+	printk("Lifetime of invalid entry refreshed\n");
+}
+
+/* Miscellaneous */
+
+/**
+*	@brief Validate route having passed source and destination addresses
+*
+*	@param source_address
+* @param destination_address
+*
+*	@return True when entry is found and refreshed, false otherwise.
+*/
+bool bt_mesh_validate_route(u16_t source_address, u16_t destination_address)
 {
 	struct bt_mesh_route_entry *entry = NULL;
 
-	if (search_invalid_destination(source_address, destination_address, &entry)) {
+	if (bt_mesh_search_invalid_destination(source_address, destination_address, &entry)) {
 		k_timer_stop(&entry->lifetime);
 		k_sem_take(&invalid_list_sem, K_FOREVER); /*take semaphore */
 		sys_slist_find_and_remove(&invalid_list, &entry->node);
@@ -321,8 +545,8 @@ bool validate_route(u16_t source_address, u16_t destination_address)
 
 		struct k_timer temp;
 		entry->lifetime = temp;
-		k_timer_init(&entry->lifetime, delete_entry_valid, NULL);       /*init lifetime timer*/
-		k_timer_start(&entry->lifetime, LIFETIME, 0);                   /*start timer 200s for each entry */
+		k_timer_init(&entry->lifetime, bt_mesh_delete_entry_valid, NULL);
+		k_timer_start(&entry->lifetime, LIFETIME, 0);
 		// printk("Timer STATUS=%d \n)",k_timer_status_get(&entry->lifetime));
 		return true;
 
@@ -331,11 +555,19 @@ bool validate_route(u16_t source_address, u16_t destination_address)
 	}
 }
 
-bool invalidate_route(u16_t source_address, u16_t destination_address)
+/**
+*	@brief Inalidate route having passed source and destination addresses
+*
+*	@param source_address
+* @param destination_address
+*
+*	@return True when entry is found and refreshed, false otherwise.
+*/
+bool bt_mesh_invalidate_route(u16_t source_address, u16_t destination_address)
 {
 	struct bt_mesh_route_entry *entry = NULL;
 
-	if (search_valid_destination(source_address, destination_address, &entry)) {
+	if (bt_mesh_search_valid_destination(source_address, destination_address, &entry)) {
 		k_timer_stop(&entry->lifetime);
 		k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
 		sys_slist_find_and_remove(&valid_list, &entry->node);
@@ -347,8 +579,8 @@ bool invalidate_route(u16_t source_address, u16_t destination_address)
 
 		struct k_timer temp;
 		entry->lifetime = temp;
-		k_timer_init(&entry->lifetime, delete_entry_invalid, NULL);     /*init lifetime timer*/
-		k_timer_start(&entry->lifetime, LIFETIME, 0);                   /*start timer 200s for each entry */
+		k_timer_init(&entry->lifetime, bt_mesh_delete_entry_invalid, NULL);
+		k_timer_start(&entry->lifetime, LIFETIME, 0);
 		// printk("Timer STATUS=%d \n)",k_timer_status_get(&entry->lifetime));
 		return true;
 
@@ -357,36 +589,20 @@ bool invalidate_route(u16_t source_address, u16_t destination_address)
 	}
 }
 
-void refresh_lifetime_valid(struct bt_mesh_route_entry *entry)
-{
-	k_timer_stop(&entry->lifetime);
-	struct k_timer temp;
-	entry->lifetime = temp;
-	k_timer_init(&entry->lifetime, delete_entry_valid, NULL);       /*init lifetime timer*/
-	k_timer_start(&entry->lifetime, LIFETIME, 0);                   /*start timer 200s for each entry */
-	printk("Lifetime of valid entry refreshed\n");
-}
 
-void refresh_lifetime_invalid(struct bt_mesh_route_entry *entry)
-{
-	k_timer_stop(&entry->lifetime);
-	struct k_timer temp;
-	entry->lifetime = temp;
-	k_timer_init(&entry->lifetime, delete_entry_invalid, NULL);     /*init lifetime timer*/
-	k_timer_start(&entry->lifetime, LIFETIME, 0);                   /*start timer 200s for each entry */
-	printk("Lifetime of invalid entry refreshed\n");
-}
-
-void view_valid_list()
+/* Test Functions */
+/*void view_valid_list()
 {
 	if (sys_slist_is_empty(&valid_list)) {
 		printk("Valid List is empty \n");
 		return;
 	}
 	struct bt_mesh_route_entry *entry = NULL;
-	k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
+	k_sem_take(&valid_list_sem, K_FOREVER);
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry, node){
 		printk("Valid List:source address=%04x,destination address=%04x \n", entry->source_address, entry->destination_address);
+		printk("Valid List:hop count=%01x \n", entry->hop_count);
+
 	}
 	k_sem_give(&valid_list_sem);
 }
@@ -398,9 +614,10 @@ void view_invalid_list()
 		return;
 	}
 	struct bt_mesh_route_entry *entry = NULL;
-	k_sem_take(&invalid_list_sem, K_FOREVER); /*take semaphore */
+	k_sem_take(&invalid_list_sem, K_FOREVER);
 	SYS_SLIST_FOR_EACH_CONTAINER(&invalid_list, entry, node){
 		printk("Invalid List:source address=%04x,destination address=%04x \n", entry->source_address, entry->destination_address);
 	}
 	k_sem_give(&invalid_list_sem);
 }
+*/

@@ -154,7 +154,7 @@ static void rreq_recv_cb(struct k_timer *timer_id)
 	/* Pull out the container of the timer to access the entry */
 	struct bt_mesh_route_entry *entry = CONTAINER_OF(timer_id, struct bt_mesh_route_entry, lifetime);
 	/* Change route status from invalid to valid */
-	bt_mesh_validate_route(entry->source_address, entry->destination_address);
+	bt_mesh_validate_route(entry);
 
 	/* Construct RREP data to be sent in a response to the recv RREQ */
 	struct rrep_data data;
@@ -241,16 +241,18 @@ bool bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *b
 		else {
 			printk("Creating entry and waiting for RREQ wait interval \n");
 			/* Create a reverse entry */
-			struct bt_mesh_route_entry entry_data;
-			entry_data.source_address                 = data->destination_address;
-			entry_data.destination_address            = data->source_address;
-			entry_data.destination_sequence_number    = data->source_sequence_number;
-			entry_data.next_hop                       = data->next_hop;
-			entry_data.source_number_of_elements      = bt_mesh_elem_count();
-			entry_data.destination_number_of_elements = data->source_number_of_elements;
-			entry_data.hop_count                      = data->hop_count;
-			entry_data.net_idx 												= rx -> ctx.net_idx;
-			bt_mesh_create_entry_invalid_with_cb(&entry_data, rreq_recv_cb);
+			struct bt_mesh_route_entry *entry_data;
+			if(bt_mesh_create_entry_invalid_with_cb(&entry_data, rreq_recv_cb))
+			{
+			entry_data->source_address                 = data->destination_address;
+			entry_data->destination_address            = data->source_address;
+			entry_data->destination_sequence_number    = data->source_sequence_number;
+			entry_data->next_hop                       = data->next_hop;
+			entry_data->source_number_of_elements      = bt_mesh_elem_count();
+			entry_data->destination_number_of_elements = data->source_number_of_elements;
+			entry_data->hop_count                      = data->hop_count;
+			entry_data->net_idx 											 = rx -> ctx.net_idx;
+			}
 			return 0;
 		}
 	}
@@ -263,16 +265,22 @@ bool bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *b
 		{
 		printk("Intermediate Node received a flooded RREQ and has route to destination \n");
 		/* Create a reverse entry */
-		struct bt_mesh_route_entry entry_data;
-		entry_data.source_address                 = data->destination_address;
-		entry_data.destination_address            = data->source_address;
-		entry_data.destination_sequence_number    = data->source_sequence_number;
-		entry_data.next_hop                       = data->next_hop;
-		entry_data.source_number_of_elements      = 1; /* Will be corrected by RREP */
-		entry_data.destination_number_of_elements = data->source_number_of_elements;
-		entry_data.hop_count                      = data->hop_count;
-		entry_data.net_idx 												= rx -> ctx.net_idx;
-		bt_mesh_create_entry_invalid(&entry_data);
+		struct bt_mesh_route_entry *entry_data;
+		if (bt_mesh_create_entry_invalid(&entry_data))
+		{
+		entry_data->source_address                 = data->destination_address;
+		entry_data->destination_address            = data->source_address;
+		entry_data->destination_sequence_number    = data->source_sequence_number;
+		entry_data->next_hop                       = data->next_hop;
+		entry_data->source_number_of_elements      = 1; /* Will be corrected by RREP */
+		entry_data->destination_number_of_elements = data->source_number_of_elements;
+		entry_data->hop_count                      = data->hop_count;
+		entry_data->net_idx 												= rx -> ctx.net_idx;
+		}
+		else
+		{
+			return false;
+		}
 
 		/* If the stored destination sequence number is fresher:
 		 *   - reply to RREQ originator with RWAIT
@@ -285,8 +293,8 @@ bool bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *b
 			data->hop_count = data->hop_count + 1;
 			rreq_send(data, 1, rx->ctx.net_idx); /* To RREQ's destination */
 			struct rwait_data temp; /* Dummy struct */
-			entry_data.hop_count = entry -> hop_count;
-			rwait_send(data,&entry_data,temp,rx,false); /* To RREQ's originator */
+			entry_data->hop_count = entry -> hop_count;
+			rwait_send(data,entry_data,temp,rx,false); /* To RREQ's originator */
 		}
 	}
 	else {
@@ -297,16 +305,21 @@ bool bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *b
 		/* If the reverse route wasn't created, create it */
 		if (!bt_mesh_search_invalid_destination(data->destination_address, data->source_address, &entry))
 		{
-			struct bt_mesh_route_entry entry_data;
-			entry_data.source_address                 = data->destination_address;
-			entry_data.destination_address            = data->source_address;
-			entry_data.destination_sequence_number    = data->source_sequence_number;
-			entry_data.next_hop                       = data->next_hop;
-			entry_data.source_number_of_elements      = 1; /* UNKNOWN. Will be corrected by RREP */
-			entry_data.destination_number_of_elements = data->source_number_of_elements;
-			entry_data.hop_count                      = data->hop_count;
-			entry_data.net_idx 												= rx -> ctx.net_idx;
-			bt_mesh_create_entry_invalid(&entry_data);
+			struct bt_mesh_route_entry *entry_data;
+			if(bt_mesh_create_entry_invalid(&entry_data))
+			{
+			entry_data->source_address                 = data->destination_address;
+			entry_data->destination_address            = data->source_address;
+			entry_data->destination_sequence_number    = data->source_sequence_number;
+			entry_data->next_hop                       = data->next_hop;
+			entry_data->source_number_of_elements      = 1; /* UNKNOWN. Will be corrected by RREP */
+			entry_data->destination_number_of_elements = data->source_number_of_elements;
+			entry_data->hop_count                      = data->hop_count;
+			entry_data->net_idx 											 = rx -> ctx.net_idx;
+			}
+			else {
+				return false;
+			}
 			data->next_hop = data->next_hop + 1;
 			/* Relay the received RREQ */
 			return rreq_send(data, rx->ctx.recv_ttl - 1, rx->ctx.net_idx);
@@ -573,20 +586,24 @@ bool bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *b
 		struct bt_mesh_route_entry *found_entry = NULL;
 		if (!bt_mesh_search_valid_destination(data->source_address, data->destination_address, &found_entry) ||
 				(INRANGE(data->destination_sequence_number,found_entry->destination_sequence_number)
-				&& bt_mesh_invalidate_route(found_entry->source_address, found_entry->destination_address)))
+				&& bt_mesh_invalidate_route(found_entry)))
 			{
 			/* Create forward entry */
-			struct bt_mesh_route_entry table_entry;
-			table_entry.source_address                  = data->source_address;
-			table_entry.destination_address             = data->destination_address;
-			table_entry.destination_sequence_number     = data->destination_sequence_number;
-			table_entry.next_hop                        = rx->ctx.addr;
-			table_entry.hop_count                       = data->hop_count;
-			table_entry.destination_number_of_elements  = data->destination_number_of_elements;
-			table_entry.source_number_of_elements 			= bt_mesh_elem_count();
-			table_entry.net_idx 												= rx -> ctx.net_idx;
-			bt_mesh_create_entry_valid(&table_entry);
-
+			struct bt_mesh_route_entry *table_entry;
+			if(bt_mesh_create_entry_valid(&table_entry))
+			{
+			table_entry->source_address                  = data->source_address;
+			table_entry->destination_address             = data->destination_address;
+			table_entry->destination_sequence_number     = data->destination_sequence_number;
+			table_entry->next_hop                        = rx->ctx.addr;
+			table_entry->hop_count                       = data->hop_count;
+			table_entry->destination_number_of_elements  = data->destination_number_of_elements;
+			table_entry->source_number_of_elements 			 = bt_mesh_elem_count();
+			table_entry->net_idx 												 = rx -> ctx.net_idx;
+			}
+			else {
+				return false;
+			}
 			/* Create entry in rrep_rwait_list */
 			struct rrep_rwait_list_entry rrep_entry_temp;
 			struct rrep_rwait_list_entry *rrep_entry=&rrep_entry_temp;
@@ -608,18 +625,20 @@ bool bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *b
 			/* Modify the RREQ's destination address with the primary one */
 			existing_entry->source_address=data->destination_address;
 			/* Validate the reverse route created by RREQ */
-			bt_mesh_validate_route(existing_entry->source_address, existing_entry->destination_address);
+			bt_mesh_validate_route(existing_entry);
 			/* Create a forward route */
-			struct bt_mesh_route_entry table_entry;
-			table_entry.source_address                  = data->source_address;
-			table_entry.destination_address             = data->destination_address;
-			table_entry.destination_sequence_number     = data->destination_sequence_number;
-			table_entry.next_hop                        = rx->ctx.addr;
-			table_entry.hop_count                       = data->hop_count;
-			table_entry.destination_number_of_elements  = data->destination_number_of_elements;
-			table_entry.source_number_of_elements 			= existing_entry->destination_number_of_elements;
-			table_entry.net_idx 												= rx -> ctx.net_idx;
-			bt_mesh_create_entry_valid(&table_entry);
+			struct bt_mesh_route_entry *table_entry;
+			if(bt_mesh_create_entry_valid(&table_entry))
+			{
+			table_entry->source_address                  = data->source_address;
+			table_entry->destination_address             = data->destination_address;
+			table_entry->destination_sequence_number     = data->destination_sequence_number;
+			table_entry->next_hop                        = rx->ctx.addr;
+			table_entry->hop_count                       = data->hop_count;
+			table_entry->destination_number_of_elements  = data->destination_number_of_elements;
+			table_entry->source_number_of_elements 			= existing_entry->destination_number_of_elements;
+			table_entry->net_idx 												= rx -> ctx.net_idx;
+			}
 
 			data->hop_count++;
 			rrep_send(data, rx -> ctx.net_idx ,existing_entry->next_hop);

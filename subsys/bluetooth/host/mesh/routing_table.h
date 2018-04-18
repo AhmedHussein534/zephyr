@@ -31,9 +31,9 @@ struct bt_mesh_route_entry {
 void bt_mesh_routing_table_init();
 
 /* Create Entry Functions */
-bool bt_mesh_create_entry_valid(struct bt_mesh_route_entry *entry_data);
-bool bt_mesh_create_entry_invalid(struct bt_mesh_route_entry *entry_data);
-bool bt_mesh_create_entry_invalid_with_cb(struct bt_mesh_route_entry *entry_data, void (*timer_cb)(struct k_timer *timer_id));
+bool bt_mesh_create_entry_valid(struct bt_mesh_route_entry **entry_data);
+bool bt_mesh_create_entry_invalid(struct bt_mesh_route_entry **entry_data);
+bool bt_mesh_create_entry_invalid_with_cb(struct bt_mesh_route_entry **entry_data, void (*timer_cb)(struct k_timer *timer_id));
 
 /* Search Entry Functions */
 bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_address, struct bt_mesh_route_entry **entry);
@@ -56,9 +56,11 @@ void bt_mesh_refresh_lifetime_valid(struct bt_mesh_route_entry *entry);
 void bt_mesh_refresh_lifetime_invalid(struct bt_mesh_route_entry *entry);
 
 /* Miscellaneous */
-bool bt_mesh_validate_route(u16_t source_address, u16_t destination_address);
-bool bt_mesh_invalidate_route(u16_t source_address, u16_t destination_address);
+bool bt_mesh_validate_route(struct bt_mesh_route_entry *entry);
+bool bt_mesh_invalidate_route(struct bt_mesh_route_entry *entry);
 
 /* Test Functions */
-/* void view_valid_list();
-void view_invalid_list(); */
+/*
+void view_valid_list();
+void view_invalid_list();
+*/

@@ -128,6 +128,10 @@ extern int *__errno(void);
 
 #define EILSEQ 138 /* Illegal byte sequence */
 
+#define ELOCAL 139 /* Source address is a local element*/
+#define ENORREQ 140 /* RREP interval has expired*/
+#define ENORREP 141 /* RREP interval has expired*/
+
 #ifdef __cplusplus
 }
 #endif

@@ -5,9 +5,19 @@
  */
 
 /* -- Includes -- */
+#include <stdint.h>
 #include <zephyr.h>
-#include <misc/slist.h>
-#include <string.h>
+#include <misc/byteorder.h>
+#include <net/buf.h>
+#include <bluetooth/bluetooth.h>
+#include <bluetooth/mesh.h>
+#include "common/log.h"
+#include "adv.h"
+#include "mesh.h"
+#include "net.h"
+#include "transport.h"
+#include "access.h"
+#include "foundation.h"
 #include "routing_table.h"
 
 /** @brief Linked list holding pointers to the valid entries of the routing tables. */
@@ -39,23 +49,34 @@ void bt_mesh_routing_table_init()
  *
  *	@return True when allocation succeeds, False when no space is available.
  */
-bool bt_mesh_create_entry_valid(struct bt_mesh_route_entry **entry_location)
+bool bt_mesh_create_entry_valid(struct bt_mesh_route_entry *entry_data)
 {
+	struct bt_mesh_route_entry *entry_location = NULL;
+
 	/* if space found in slab, Allocate new node */
-	if (k_mem_slab_alloc(&routing_table_slab, (void **)&(*entry_location), ALLOCATION_INTERVAL) == 0) {
-		memset((*entry_location), 0, ENTRY_SIZE);                  /* Initializing with zeros */
+	if (k_mem_slab_alloc(&routing_table_slab, (void **)&entry_location, ALLOCATION_INTERVAL) == 0) {
+		memset(entry_location, 0, ENTRY_SIZE);                  /* Initializing with zeros */
 		k_sem_take(&valid_list_sem, K_FOREVER);                 /*take semaphore */
-		sys_slist_append(&valid_list, &(*entry_location)->node);   /*insert node in linkedlist */
+		sys_slist_append(&valid_list, &entry_location->node);   /*insert node in linkedlist */
 		k_sem_give(&valid_list_sem);
 	} else    {
 		printk("Memory Allocation timeout \n");
 		return false;
 	}
 
+	/* Fill the entry with passed data */
+	entry_location->source_address                    = entry_data->source_address;
+	entry_location->destination_address               = entry_data->destination_address;
+	entry_location->destination_sequence_number       = entry_data->destination_sequence_number;
+	entry_location->hop_count                         = entry_data->hop_count;
+	entry_location->next_hop                          = entry_data->next_hop;
+	entry_location->repairable                        = entry_data->repairable;
+	entry_location->source_number_of_elements         = entry_data->source_number_of_elements;
+	entry_location->destination_number_of_elements    = entry_data->destination_number_of_elements;
 
 	/* Start the lifetime timer */
-	k_timer_init (&(*entry_location)->lifetime, bt_mesh_delete_entry_valid, NULL);
-	k_timer_start(&(*entry_location)->lifetime, LIFETIME, 0);
+	k_timer_init(&entry_location->lifetime, bt_mesh_delete_entry_valid, NULL);
+	k_timer_start(&entry_location->lifetime, LIFETIME, 0);
 	return true;
 }
 
@@ -67,22 +88,33 @@ bool bt_mesh_create_entry_valid(struct bt_mesh_route_entry **entry_location)
  *
  *	@return True when allocation succeeds, False when no space is available.
  */
-bool bt_mesh_create_entry_invalid(struct bt_mesh_route_entry **entry_location)
+bool bt_mesh_create_entry_invalid(struct bt_mesh_route_entry *entry_data)
 {
+	struct bt_mesh_route_entry *entry_location = NULL;
 	/*if space found in slab, Allocate new node */
-	if (k_mem_slab_alloc(&routing_table_slab, (void **)&(*entry_location), ALLOCATION_INTERVAL) == 0) {
-		memset((*entry_location), 0, ENTRY_SIZE);                  /* Initializing with zeros */
+	if (k_mem_slab_alloc(&routing_table_slab, (void **)&entry_location, ALLOCATION_INTERVAL) == 0) {
+		memset(entry_location, 0, ENTRY_SIZE);                  /* Initializing with zeros */
 		k_sem_take(&invalid_list_sem, K_FOREVER);               /*take semaphore */
-		sys_slist_append(&invalid_list, &(*entry_location)->node); /*insert node in linkedlist */
+		sys_slist_append(&invalid_list, &entry_location->node); /*insert node in linkedlist */
 		k_sem_give(&invalid_list_sem);
 	} else    {
 		printk("Memory Allocation timeout \n");
 		return false;
 	}
 
+	/* Fill the entry with passed data */
+	entry_location->source_address                    = entry_data->source_address;
+	entry_location->destination_address               = entry_data->destination_address;
+	entry_location->destination_sequence_number       = entry_data->destination_sequence_number;
+	entry_location->hop_count                         = entry_data->hop_count;
+	entry_location->next_hop                          = entry_data->next_hop;
+	entry_location->repairable                        = entry_data->repairable;
+	entry_location->source_number_of_elements         = entry_data->source_number_of_elements;
+	entry_location->destination_number_of_elements    = entry_data->destination_number_of_elements;
+
 	/* Start the lifetime timer */
-	k_timer_init (&(*entry_location)->lifetime, bt_mesh_delete_entry_invalid, NULL);
-	k_timer_start(&(*entry_location)->lifetime, LIFETIME, 0);
+	k_timer_init(&entry_location->lifetime, bt_mesh_delete_entry_invalid, NULL);
+	k_timer_start(&entry_location->lifetime, LIFETIME, 0);
 	return true;
 }
 
@@ -95,23 +127,33 @@ bool bt_mesh_create_entry_invalid(struct bt_mesh_route_entry **entry_location)
  *
  *	@return True when allocation succeeds, False when no space is available.
  */
-bool bt_mesh_create_entry_invalid_with_cb(struct bt_mesh_route_entry **entry_location, \
+bool bt_mesh_create_entry_invalid_with_cb(struct bt_mesh_route_entry *entry_data, \
 				  void (*timer_cb)(struct k_timer *timer_id))
 {
+	struct bt_mesh_route_entry *entry_location = NULL;
 
 	/* if space found in slab, Allocate new node */
-	if (k_mem_slab_alloc(&routing_table_slab, (void **)&(*entry_location), ALLOCATION_INTERVAL) == 0) {
-		memset(*(entry_location), 0, ENTRY_SIZE);                  /* Initializing with zeros */
+	if (k_mem_slab_alloc(&routing_table_slab, (void **)&entry_location, ALLOCATION_INTERVAL) == 0) {
+		memset(entry_location, 0, ENTRY_SIZE);                  /* Initializing with zeros */
 		k_sem_take(&invalid_list_sem, K_FOREVER);               /*take semaphore */
-		sys_slist_append(&invalid_list, &(*entry_location)->node); /*insert node in linkedlist */
+		sys_slist_append(&invalid_list, &entry_location->node); /*insert node in linkedlist */
 		k_sem_give(&invalid_list_sem);
 	} else    {
 		printk("Memory Allocation timeout \n");
 		return false;
 	}
+	/* Fill the entry with passed data */
+	entry_location->source_address                    = entry_data->source_address;
+	entry_location->destination_address               = entry_data->destination_address;
+	entry_location->destination_sequence_number       = entry_data->destination_sequence_number;
+	entry_location->hop_count                         = entry_data->hop_count;
+	entry_location->next_hop                          = entry_data->next_hop;
+	entry_location->repairable                        = entry_data->repairable;
+	entry_location->source_number_of_elements         = entry_data->source_number_of_elements;
+	entry_location->destination_number_of_elements    = entry_data->destination_number_of_elements;
 	/* Start the lifetime timer */
-	k_timer_init (&(*entry_location)->lifetime, timer_cb, NULL);
-	k_timer_start(&(*entry_location)->lifetime, RREQ_INTERVAL_WAIT, 0);
+	k_timer_init(&entry_location->lifetime, timer_cb, NULL);
+	k_timer_start(&entry_location->lifetime, RREQ_INTERVAL_WAIT, 0);
 	return true;
 }
 
@@ -497,12 +539,11 @@ void bt_mesh_refresh_lifetime_invalid(struct bt_mesh_route_entry *entry)
 *
 *	@return True when entry is found and refreshed, false otherwise.
 */
-bool bt_mesh_validate_route(struct bt_mesh_route_entry *entry)
+bool bt_mesh_validate_route(u16_t source_address, u16_t destination_address)
 {
-		if (entry == false )
-		{
-		 return false;
-		}
+	struct bt_mesh_route_entry *entry = NULL;
+
+	if (bt_mesh_search_invalid_destination(source_address, destination_address, &entry)) {
 		k_timer_stop(&entry->lifetime);
 		k_sem_take(&invalid_list_sem, K_FOREVER); /*take semaphore */
 		sys_slist_find_and_remove(&invalid_list, &entry->node);
@@ -518,6 +559,10 @@ bool bt_mesh_validate_route(struct bt_mesh_route_entry *entry)
 		k_timer_start(&entry->lifetime, LIFETIME, 0);
 		// printk("Timer STATUS=%d \n)",k_timer_status_get(&entry->lifetime));
 		return true;
+
+	} else   {
+		return false;
+	}
 }
 
 /**
@@ -528,12 +573,11 @@ bool bt_mesh_validate_route(struct bt_mesh_route_entry *entry)
 *
 *	@return True when entry is found and refreshed, false otherwise.
 */
-bool bt_mesh_invalidate_route(struct bt_mesh_route_entry *entry)
+bool bt_mesh_invalidate_route(u16_t source_address, u16_t destination_address)
 {
-	 	if (entry == false )
-	 	{
-		 return false;
-	 	}
+	struct bt_mesh_route_entry *entry = NULL;
+
+	if (bt_mesh_search_valid_destination(source_address, destination_address, &entry)) {
 		k_timer_stop(&entry->lifetime);
 		k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
 		sys_slist_find_and_remove(&valid_list, &entry->node);
@@ -549,12 +593,15 @@ bool bt_mesh_invalidate_route(struct bt_mesh_route_entry *entry)
 		k_timer_start(&entry->lifetime, LIFETIME, 0);
 		// printk("Timer STATUS=%d \n)",k_timer_status_get(&entry->lifetime));
 		return true;
+
+	} else   {
+		return false;
+	}
 }
 
 
 /* Test Functions */
-/*
-void view_valid_list()
+/*void view_valid_list()
 {
 	if (sys_slist_is_empty(&valid_list)) {
 		printk("Valid List is empty \n");

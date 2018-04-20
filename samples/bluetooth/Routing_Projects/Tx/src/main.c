@@ -46,13 +46,13 @@
 #include <bluetooth/l2cap.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/mesh.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/crypto.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/adv.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/mesh.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/net.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/transport.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/access.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/foundation.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/crypto.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/adv.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/mesh.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/net.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/transport.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/access.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/foundation.h>
 #include <stdio.h>
 
 #include <board.h>

@@ -5,6 +5,9 @@
  *	The file contains RREQ, RREP and RWAIT data and functions.
  *  @bug No known bugs.
  */
+
+ /* -- Includes -- */
+
 /* DEFINITIONS */
 /* RREQ DEFINITIONS */
 #define RREQ_SDU_MAX_SIZE 14
@@ -91,11 +94,11 @@ struct rreq_data {
 
 /* FUNCTIONS PROTOTYPES */
 /* RREQ FUNCTIONS */
-bool bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
+int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
 u8_t bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx);
 
 /* RREP FUNCTIONS */
-bool bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
+int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
 void bt_mesh_trans_rrep_rwait_list_init();
 
 /* RWAIT FUNCTIONS */

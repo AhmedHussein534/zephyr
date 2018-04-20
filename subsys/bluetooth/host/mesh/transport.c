@@ -34,7 +34,6 @@
 #include "transport.h"
 
 // Surround with configuration parameter
-#include "routing_table.h"
 #include "aodv_control_messages.h"
 
 #define AID_MASK                    ((u8_t)(BIT_MASK(6)))
@@ -1243,6 +1242,7 @@ static struct seg_rx *seg_rx_alloc(struct bt_mesh_net_rx *net_rx,
 static int trans_seg(struct net_buf_simple *buf, struct bt_mesh_net_rx *net_rx,
 		     enum bt_mesh_friend_pdu_type *pdu_type, u64_t *seq_auth)
 {
+	printk("seg recv\n");
 	struct seg_rx *rx;
 	u8_t *hdr = buf->data;
 	u16_t seq_zero;

@@ -2933,8 +2933,8 @@ static void heartbeat_sub_set(struct bt_mesh_model *model,
 
 	if (sub_src != BT_MESH_ADDR_UNASSIGNED &&
 	    !BT_MESH_ADDR_IS_UNICAST(sub_src)) {
-		BT_WARN("Prohibited source address");
-		return;
+		//BT_WARN("Prohibited source address");
+		//return;
 	}
 
 	if (BT_MESH_ADDR_IS_VIRTUAL(sub_dst) || BT_MESH_ADDR_IS_RFU(sub_dst) ||
@@ -3171,10 +3171,10 @@ void bt_mesh_heartbeat(u16_t src, u16_t dst, u8_t hops, u16_t feat)
 		return;
 	}
 
-	if (src != cfg->hb_sub.src || dst != cfg->hb_sub.dst) {
+	/*if (src != cfg->hb_sub.src || dst != cfg->hb_sub.dst) {
 		BT_WARN("No subscription for received heartbeat");
 		return;
-	}
+	}*/
 
 	if (k_uptime_get() > cfg->hb_sub.expiry) {
 		BT_WARN("Heartbeat subscription period expired");
@@ -3191,6 +3191,10 @@ void bt_mesh_heartbeat(u16_t src, u16_t dst, u8_t hops, u16_t feat)
 	BT_DBG("src 0x%04x dst 0x%04x hops %u min %u max %u count %u", src,
 	       dst, hops, cfg->hb_sub.min_hops, cfg->hb_sub.max_hops,
 	       cfg->hb_sub.count);
+	printk("src 0x%04x dst 0x%04x hops %u min %u max %u count %u \n", src,
+	       dst, hops, cfg->hb_sub.min_hops, cfg->hb_sub.max_hops,
+	       cfg->hb_sub.count);
+
 
 	if (cfg->hb_sub.func) {
 		cfg->hb_sub.func(hops, feat);

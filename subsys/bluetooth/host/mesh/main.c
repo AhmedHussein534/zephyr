@@ -14,6 +14,8 @@
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/conn.h>
 #include <bluetooth/mesh.h>
+#include <bluetooth/mesh/cfg_cli.h>
+
 
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG)
 #include "common/log.h"
@@ -30,6 +32,10 @@
 #include "foundation.h"
 #include "proxy.h"
 #include "mesh.h"
+#include "routing_table.h"
+#include "aodv_control_messages.h"
+
+
 
 static bool provisioned;
 
@@ -84,6 +90,34 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND)) {
 		bt_mesh_friend_init();
+	}
+
+	
+	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING)) {
+		struct bt_mesh_cfg_hb_pub pub = {
+		.dst = BT_MESH_ADDR_ALL_NODES,
+		.count = 0xff,
+		.period = 0x05,
+		.ttl = 0x07,
+		.feat = 0,
+		.net_idx = net_idx,
+		};
+
+		bt_mesh_cfg_hb_pub_set(net_idx, addr, &pub, NULL);
+		printk("Publishing heartbeat messages\n");
+	
+		struct bt_mesh_cfg_hb_sub sub = {
+		.src = BT_MESH_ADDR_ALL_NODES,
+		.dst = BT_MESH_ADDR_ALL_NODES,
+		.period = 0x10,
+		};
+
+		bt_mesh_cfg_hb_sub_set(net_idx, addr, &sub, NULL);
+		printk("Subscribing to heartbeat messages\n");
+		bt_mesh_trans_rrep_rwait_list_init();
+		bt_mesh_routing_table_init();
+
+
 	}
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PROV)) {

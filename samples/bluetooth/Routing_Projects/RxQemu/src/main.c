@@ -270,7 +270,10 @@ static void configure(void)
 	bt_mesh_cfg_mod_sub_add(net_idx, addr, addr, NODE_ADDR + 1, BT_MESH_MODEL_ID_GEN_ONOFF_SRV, NULL);
 	printk("Subscribing complete \n");
 	/*Add Subscription, LED0 (ELEM 0) is Subscribing to GROUP_ADDR */
- 	 //bt_mesh_cfg_mod_sub_add(net_idx, addr, addr, GROUP_ADDR,BT_MESH_MODEL_ID_GEN_ONOFF_SRV, NULL);
+ 	 bt_mesh_cfg_mod_sub_add(net_idx, addr, addr, GROUP_ADDR,BT_MESH_MODEL_ID_GEN_ONOFF_SRV, NULL);
+
+
+
  }
 
 

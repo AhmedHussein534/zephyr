@@ -451,12 +451,14 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	u8_t *ad;
 	int err;
 	if(!bt_mesh_elem_find(tx->ctx->addr) ){
-		if(!bt_mesh_trans_ring_search(tx)){
-			BT_ERR("Destination not found\n");
+		err=bt_mesh_trans_ring_search(tx);
+		if(!err){
 			return 0;
 		}
-		else{
-			return 0;
+		else
+		{
+			BT_ERR("Destination not found\n");
+			return err;
 		}
 	}
 
@@ -776,10 +778,10 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 		return -EINVAL;
 	}
 
-	if (rx->dst != hb_sub_dst) {
+/*	if (rx->dst != hb_sub_dst) {
 		BT_WARN("Ignoring heartbeat to non-subscribed destination");
 		return 0;
-	}
+*/	//}
 
 	init_ttl = (net_buf_simple_pull_u8(buf) & 0x7f);
 	feat = net_buf_simple_pull_be16(buf);
@@ -821,7 +823,7 @@ static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 			return bt_mesh_trans_rrep_recv(rx,buf);
 		case TRANS_CTL_OP_RWAIT:
 		 	bt_mesh_trans_rwait_recv(rx,buf);
-			return 0; /* RANA: */
+			return 0;
 		}
 	}
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND) && !bt_mesh_lpn_established()) {
@@ -1242,7 +1244,6 @@ static struct seg_rx *seg_rx_alloc(struct bt_mesh_net_rx *net_rx,
 static int trans_seg(struct net_buf_simple *buf, struct bt_mesh_net_rx *net_rx,
 		     enum bt_mesh_friend_pdu_type *pdu_type, u64_t *seq_auth)
 {
-	printk("seg recv\n");
 	struct seg_rx *rx;
 	u8_t *hdr = buf->data;
 	u16_t seq_zero;

@@ -509,7 +509,7 @@ void bt_mesh_refresh_lifetime_invalid(struct bt_mesh_route_entry *entry)
 */
 bool bt_mesh_validate_route(struct bt_mesh_route_entry *entry)
 {
-		if (entry == false )
+		if (entry == NULL )
 		{
 		 return false;
 		}
@@ -541,7 +541,7 @@ bool bt_mesh_validate_route(struct bt_mesh_route_entry *entry)
 */
 bool bt_mesh_invalidate_route(struct bt_mesh_route_entry *entry)
 {
-	 	if (entry == false )
+	 	if (entry == NULL )
 	 	{
 		 return false;
 	 	}

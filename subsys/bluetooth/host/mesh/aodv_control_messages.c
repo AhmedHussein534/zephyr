@@ -84,8 +84,6 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
  */
 static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
 {
-	/*data -> destination_address = 0x0e0e;*/ /* TESTING */
-
 	/* Concatenate RREQ flags into 1 byte */
 	u8_t flags = data->G + (data->D << 1) + (data->U << 2) + (data->I << 3);
 	/* Default network layer next hop is to broadcast to all nodes */
@@ -361,7 +359,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		}
 	}
 
-	/* TESTING: Test sent RREQ data is correct.
+	/* TESTING: Test sent RREQ data is correct. */
 		 printk("Source Address=%04x \n",RREQ_GET_SRC_ADDR(buf));
 	   printk("Destination Address=%04x \n",RREQ_GET_DST_ADDR(buf));
 	   printk("Source Number of Elements=%04x \n",RREQ_GET_SRC_NUMBER_OF_ELEMENTS(buf));
@@ -371,7 +369,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	   printk("U Flag=%d \n",RREQ_GET_U_FLAG(buf));
 	   printk("I Flag=%d \n",RREQ_GET_I_FLAG(buf));
 	   printk("Destination Sequence Number=%08x \n",RREQ_GET_DST_SEQ(buf));
-	 */
+
 	 return 0;
 }
 
@@ -388,7 +386,6 @@ u8_t bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 {
 	u16_t source_address = tx->src; /* Primary element source address */
 	u16_t destination_address = tx->ctx->addr; /* TODO: BT_MESH_ADDR_ALL_NODES ? */
-
 	/* The following 2 fields will be set if
 	 * an invalid route is found to destination */
 	u32_t destination_sequence_number = 0;
@@ -422,6 +419,7 @@ u8_t bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 		.source_number_of_elements = bt_mesh_elem_count(),
 		.destination_sequence_number = destination_sequence_number
 	};
+	printk("Destination Address : %04x\n",destination_address);
 	rreq_send(&data, TTL, tx->ctx->net_idx);
 
 	/* Keep searching the rrep_rwait_list till an entry is found.
@@ -598,7 +596,7 @@ int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	data->hop_count = RREP_GET_HOP_COUNT(buf);
 	data->destination_number_of_elements = RREP_GET_SRC_NUMBER_OF_ELEMENTS(buf);
 
-	/* Testing: View received RREP data
+	/* Testing: View received RREP  */
 	printk("RREP R 0x%01x \n", data->R);
 	printk("RREP source_address 0x%04x \n", data->source_address);
 	printk("RREP dst 0x%04x \n", data->destination_address);
@@ -610,7 +608,7 @@ int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	printk("Network recieved TL 0x%02x \n", rx->ctx.send_ttl);
 	printk("msg->src 0x%04x \n", data->source_address);
 	printk("bt_mesh_primary_addr() 0x%04x \n", bt_mesh_primary_addr());
-	*/
+
 
 	BT_DBG("source_address 0x%04x destination_address 0x%04x destination_sequence_number 0x%08x",
 	 data->source_address, data->destination_address,data->destination_sequence_number);

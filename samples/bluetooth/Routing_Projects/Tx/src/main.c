@@ -46,19 +46,19 @@
 #include <bluetooth/l2cap.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/mesh.h>
-#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/crypto.h>
-#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/adv.h>
-#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/mesh.h>
-#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/net.h>
-#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/transport.h>
-#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/access.h>
-#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/foundation.h>
+#include </home/ahmed/zephyr/subsys/bluetooth/host/crypto.h>
+#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/adv.h>
+#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/mesh.h>
+#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/net.h>
+#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/transport.h>
+#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/access.h>
+#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/foundation.h>
 #include <stdio.h>
 
 #include <board.h>
 
 #define CID_INTEL 0x0002 /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR 0x0b0c /*Unicast Address*/
+#define NODE_ADDR 0x0E0E /*Unicast Address*/
 #define GROUP_ADDR 0xc000 /*The Address to use for pub and sub*/
 
 /*

@@ -35,6 +35,7 @@
 
 // Surround with configuration parameter
 #include "aodv_control_messages.h"
+#include "routing_table.h"
 
 #define AID_MASK                    ((u8_t)(BIT_MASK(6)))
 
@@ -451,15 +452,23 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	u8_t *ad;
 	int err;
 	if(!bt_mesh_elem_find(tx->ctx->addr) ){
-		err=bt_mesh_trans_ring_search(tx);
-		if(!err){
-			return 0;
+		struct bt_mesh_route_entry *entry=NULL;
+		if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,&entry)){
+			printk("Destination Found\n");
 		}
-		else
-		{
-			BT_ERR("Destination not found\n");
-			return err;
+		else{
+			printk("Initiating Ring Search\n");
+			err=bt_mesh_trans_ring_search(tx);
+			if(!err){
+				return 0;
+			}
+			else
+			{
+				BT_ERR("Destination not found\n");
+				return err;
+			}
 		}
+
 	}
 
 	if (net_buf_simple_tailroom(msg) < 4) {

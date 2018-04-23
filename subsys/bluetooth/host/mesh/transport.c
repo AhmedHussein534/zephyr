@@ -113,7 +113,7 @@ void bt_mesh_set_hb_sub_dst(u16_t addr)
 	hb_sub_dst = addr;
 }
 
-int send_unseg(struct bt_mesh_net_tx *tx, struct net_buf_simple *sdu,
+static int send_unseg(struct bt_mesh_net_tx *tx, struct net_buf_simple *sdu,
 		      const struct bt_mesh_send_cb *cb, void *cb_data)
 {
 	struct net_buf *buf;
@@ -975,8 +975,7 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 			return 0;
 		}
 	}
-	u8_t x=bt_mesh_net_send(tx, buf, cb, cb_data);
-	return x;
+	return bt_mesh_net_send(tx, buf, cb, cb_data);
 }
  else
 	{
@@ -1002,7 +1001,6 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 		tx_seg->dst = tx->ctx->addr;
 		tx_seg->seg_n = segment_count;
 		tx_seg->nack_count = tx_seg->seg_n + 1;
-		//tx_seg->nack_count = 0;
 		tx_seg->seq_auth = SEQ_AUTH(BT_MESH_NET_IVI_TX, bt_mesh.seq);
 		tx_seg->sub = tx->sub;
 		tx_seg->new_key = tx->sub->kr_flag;

@@ -125,7 +125,6 @@ static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
 	};
 
 	/* Add RREQ data in a buffer to be sent */
-	net_buf_simple_add_mem(&buf, &data->hop_count, 1);
 	net_buf_simple_add_mem(&buf, &data->source_address, 2);
 	net_buf_simple_add_mem(&buf, &data->destination_address, 2);
 	net_buf_simple_add_mem(&buf, &data->source_number_of_elements, 2);
@@ -135,6 +134,7 @@ static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
 	if (data->U == 0)
 	{
 		/* Add the destination sequence number if it's known */
+		printk("here \n");
 		net_buf_simple_add_mem(&buf, &data->destination_sequence_number, 3);
 	}
 
@@ -389,7 +389,7 @@ u8_t bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 	/* The following 2 fields will be set if
 	 * an invalid route is found to destination */
 	u32_t destination_sequence_number = 0;
-	bool U_flag = 0; /* Unknown destination sequence number flag */
+	bool U_flag = 1; /* Unknown destination sequence number flag */
 
 	/* Create a ring search timer */
 	struct ring_search_flag_timer ring_struct;
@@ -406,7 +406,8 @@ u8_t bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 	if (bt_mesh_search_invalid_destination(source_address, destination_address, &entry))
 	{
 		destination_sequence_number = entry->destination_sequence_number;
-		U_flag = 1;
+		printk("destination sequence number %08x \n",destination_sequence_number);
+		U_flag = 0;
 	}
 
 	/* Construct RREQ data to be sent */
@@ -540,7 +541,6 @@ static int  rrep_send(struct rrep_data *data,u16_t net_idx, u16_t destination_ad
 	net_buf_simple_add_mem(&buf, &data->destination_sequence_number, 4);
 	net_buf_simple_add_mem(&buf, &data->hop_count, 1);
 	net_buf_simple_add_mem(&buf, &data->destination_number_of_elements, 2);
-
 	return bt_mesh_ctl_send(&tx, TRANS_CTL_OP_RREP, buf.data,
 				buf.len, NULL, NULL, NULL);
 }

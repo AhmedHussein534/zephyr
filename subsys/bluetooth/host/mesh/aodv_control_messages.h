@@ -12,16 +12,16 @@
 /* RREQ DEFINITIONS */
 #define RREQ_SDU_MAX_SIZE 14
 /* Macros used to dissect a buffer containing RREQ data*/
-#define RREQ_GET_SRC_ADDR(buf) buf->data[1] + (buf->data[2] << 8)
-#define RREQ_GET_DST_ADDR(buf) buf->data[3] + (buf->data[4] << 8)
-#define RREQ_GET_SRC_NUMBER_OF_ELEMENTS(buf) buf->data[5] + (buf->data[6] << 8)
-#define RREQ_GET_HOP_COUNT(buf) buf->data[7]
-#define RREQ_GET_G_FLAG(buf) (buf->data[8] & 0x01)
-#define RREQ_GET_D_FLAG(buf) (buf->data[8] & 0x02) >> 1
-#define RREQ_GET_U_FLAG(buf) (buf->data[8] & 0x04) >> 2
-#define RREQ_GET_I_FLAG(buf) (buf->data[8] & 0x08) >> 3
-#define RREQ_GET_SRC_SEQ(buf) buf->data[9] + (buf->data[10] << 8) + (buf->data[11] << 16)
-#define RREQ_GET_DST_SEQ(buf) buf->data[12] + (buf->data[13] << 8) + (buf->data[14] << 16)
+#define RREQ_GET_SRC_ADDR(buf) buf->data[0] + (buf->data[1] << 8)
+#define RREQ_GET_DST_ADDR(buf) buf->data[2] + (buf->data[3] << 8)
+#define RREQ_GET_SRC_NUMBER_OF_ELEMENTS(buf) buf->data[4] + (buf->data[5] << 8)
+#define RREQ_GET_HOP_COUNT(buf) buf->data[6]
+#define RREQ_GET_G_FLAG(buf) (buf->data[7] & 0x01)
+#define RREQ_GET_D_FLAG(buf) (buf->data[7] & 0x02) >> 1
+#define RREQ_GET_U_FLAG(buf) (buf->data[7] & 0x04) >> 2
+#define RREQ_GET_I_FLAG(buf) (buf->data[7] & 0x08) >> 3
+#define RREQ_GET_SRC_SEQ(buf) buf->data[8] + (buf->data[9] << 8) + (buf->data[10] << 16)
+#define RREQ_GET_DST_SEQ(buf) buf->data[11] + (buf->data[12] << 8) + (buf->data[13] << 16)
 
 /* Ring search Macros */
 #define RREQ_RING_SEARCH_WAIT_INTERVAL K_SECONDS(10)

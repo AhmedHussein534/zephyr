@@ -3188,7 +3188,6 @@ static void reassembly_info(char *str, struct net_ipv6_reassembly *reass)
 
 	for (i = 0, len = 0; i < NET_IPV6_FRAGMENTS_MAX_PKT; i++) {
 		if (!reass->pkt[i]) {
-			NET_ERR("NULL pending fragment");
 			continue;
 		}
 
@@ -4255,7 +4254,7 @@ enum net_verdict net_ipv6_process_pkt(struct net_pkt *pkt)
 
 		frag = net_frag_read_u8(frag, offset, &offset, &next_hdr);
 		frag = net_frag_read_u8(frag, offset, &offset, &length);
-		if (!frag && offset == 0xffff) {
+		if (!frag) {
 			goto drop;
 		}
 

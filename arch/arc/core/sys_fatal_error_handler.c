@@ -37,22 +37,31 @@
  *
  * @return N/A
  */
-FUNC_NORETURN __weak void _SysFatalErrorHandler(unsigned int reason,
+__weak void _SysFatalErrorHandler(unsigned int reason,
 						const NANO_ESF *pEsf)
 {
 	ARG_UNUSED(pEsf);
 
 #if !defined(CONFIG_SIMPLE_FATAL_ERROR_HANDLER)
+#if defined(CONFIG_ARC_STACK_CHECKING) || defined(CONFIG_STACK_SENTINEL)
+	if (reason == _NANO_ERR_STACK_CHK_FAIL) {
+		goto hang_system;
+	}
+#endif
 	if (reason == _NANO_ERR_KERNEL_PANIC) {
 		goto hang_system;
 	}
-	if (k_is_in_isr() || _is_thread_essential()) {
-		printk("Fatal fault in %s! Spinning...\n",
-		       k_is_in_isr() ? "ISR" : "essential thread");
+
+	if (_is_thread_essential()) {
+		printk("Fatal fault in essential thread! Spinning...\n");
 		goto hang_system;
 	}
+
 	printk("Fatal fault in thread %p! Aborting.\n", _current);
+
 	k_thread_abort(_current);
+
+	return;
 
 hang_system:
 #else
@@ -62,5 +71,4 @@ hang_system:
 	for (;;) {
 		k_cpu_idle();
 	}
-	CODE_UNREACHABLE;
 }

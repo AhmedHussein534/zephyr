@@ -10,18 +10,20 @@
 
 /* DEFINITIONS */
 /* RREQ DEFINITIONS */
-#define RREQ_SDU_MAX_SIZE 14
+#define RREQ_SDU_MAX_SIZE 15
+#define RSSI_MIN -90
 /* Macros used to dissect a buffer containing RREQ data*/
 #define RREQ_GET_SRC_ADDR(buf) buf->data[0] + (buf->data[1] << 8)
 #define RREQ_GET_DST_ADDR(buf) buf->data[2] + (buf->data[3] << 8)
 #define RREQ_GET_SRC_NUMBER_OF_ELEMENTS(buf) buf->data[4] + (buf->data[5] << 8)
 #define RREQ_GET_HOP_COUNT(buf) buf->data[6]
-#define RREQ_GET_G_FLAG(buf) (buf->data[7] & 0x01)
-#define RREQ_GET_D_FLAG(buf) (buf->data[7] & 0x02) >> 1
-#define RREQ_GET_U_FLAG(buf) (buf->data[7] & 0x04) >> 2
-#define RREQ_GET_I_FLAG(buf) (buf->data[7] & 0x08) >> 3
-#define RREQ_GET_SRC_SEQ(buf) buf->data[8] + (buf->data[9] << 8) + (buf->data[10] << 16)
-#define RREQ_GET_DST_SEQ(buf) buf->data[11] + (buf->data[12] << 8) + (buf->data[13] << 16)
+#define RREQ_GET_RSSI(buf)  buf->data[7]
+#define RREQ_GET_G_FLAG(buf) (buf->data[8] & 0x01)
+#define RREQ_GET_D_FLAG(buf) (buf->data[8] & 0x02) >> 1
+#define RREQ_GET_U_FLAG(buf) (buf->data[8] & 0x04) >> 2
+#define RREQ_GET_I_FLAG(buf) (buf->data[8] & 0x08) >> 3
+#define RREQ_GET_SRC_SEQ(buf) buf->data[9] + (buf->data[10] << 8) + (buf->data[11] << 16)
+#define RREQ_GET_DST_SEQ(buf) buf->data[12] + (buf->data[13] << 8) + (buf->data[14] << 16)
 
 /* Ring search Macros */
 #define RREQ_RING_SEARCH_WAIT_INTERVAL K_SECONDS(10)
@@ -57,6 +59,7 @@ struct rreq_data {
 			 U:1, 												 /* Unknown destination sequence number flag (1b)*/
 			 I:1; 									 			 /* Directed RREQ flag (1b)*/
 	u8_t hop_count; 									 /* Number of hops between RREQ originator and destination (1B) */
+	s8_t rssi;
 	u32_t source_sequence_number;			 /* RREQ originator sequence number (3B) */
 	u32_t destination_sequence_number; /* Last known sequence number of the RREQ destination (3B) */
 };

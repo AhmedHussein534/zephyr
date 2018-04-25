@@ -23,6 +23,7 @@ struct bt_mesh_route_entry {
 	u16_t source_number_of_elements;				/* Source number of elements (2B) */
 	u16_t destination_number_of_elements;		/* Destination number of elements (2B) */
 	u8_t hop_count;                 				/* Number of hops (1B) */
+	s8_t rssi;															/* Average RSSI (1B) */
 	bool repairable;												/* Repairable Flag (1B) */
 	u16_t net_idx;													/* Network Index (2B) */
 	struct k_timer lifetime;        				/* Lifetime timer (52B) */

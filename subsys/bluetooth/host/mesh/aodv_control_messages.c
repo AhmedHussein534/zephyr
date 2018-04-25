@@ -129,6 +129,7 @@ static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
 	net_buf_simple_add_mem(&buf, &data->destination_address, 2);
 	net_buf_simple_add_mem(&buf, &data->source_number_of_elements, 2);
 	net_buf_simple_add_mem(&buf, &data->hop_count, 1);
+	net_buf_simple_add_mem(&buf, &data->rssi, 1);
 	net_buf_simple_add_mem(&buf, &flags, 1);
 	net_buf_simple_add_mem(&buf, &data->source_sequence_number, 3);
 	if (data->U == 0)
@@ -211,6 +212,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	data->destination_address = RREQ_GET_DST_ADDR(buf);
 	data->source_number_of_elements = RREQ_GET_SRC_NUMBER_OF_ELEMENTS(buf);
 	data->hop_count = RREQ_GET_HOP_COUNT(buf);
+	data->rssi=(RREQ_GET_RSSI(buf) * (data->hop_count ) + rx->rssi)/(data->hop_count + 1);
 	data->next_hop = rx->ctx.addr;
 	data->G = RREQ_GET_G_FLAG(buf);
 	data->D = RREQ_GET_D_FLAG(buf);
@@ -219,11 +221,25 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	data->destination_sequence_number = RREQ_GET_DST_SEQ(buf);
 	data->source_sequence_number = RREQ_GET_SRC_SEQ(buf);
 
+	/* TESTING: Test sent RREQ data is correct. */
+		 printk("Source Address=%04x \n",RREQ_GET_SRC_ADDR(buf));
+		 printk("Destination Address=%04x \n",RREQ_GET_DST_ADDR(buf));
+		 printk("Source Number of Elements=%04x \n",RREQ_GET_SRC_NUMBER_OF_ELEMENTS(buf));
+		 printk("Hop Count=%d \n",RREQ_GET_HOP_COUNT(buf));
+		 printk("rssi=%d \n",RREQ_GET_RSSI(buf));
+		 printk("G Flag=%d \n",RREQ_GET_G_FLAG(buf));
+		 printk("D Flag=%d \n",RREQ_GET_D_FLAG(buf));
+		 printk("U Flag=%d \n",RREQ_GET_U_FLAG(buf));
+		 printk("I Flag=%d \n",RREQ_GET_I_FLAG(buf));
+		 printk("Destination Sequence Number=%08x \n",RREQ_GET_DST_SEQ(buf));
+
+
 	BT_DBG("source_address 0x%04x destination_address 0x%04x next_hop 0x%04x",
 	 data->source_address, data->destination_address,data->next_hop);
 	BT_DBG("source_number_of_elements %04x hop_count %01x source_sequence_number %08x",
 		data->source_number_of_elements, data->hop_count, data->source_sequence_number)
 	BT_DBG("destination_sequence_number  %08x ", data->destination_sequence_number)
+	printk("RSSI average = %d\n",data->rssi);
 
 
 
@@ -248,7 +264,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		else if (bt_mesh_search_invalid_destination(data->destination_address, data->source_address, &entry))
 		{
 			/* If it contains better data, replace */
-			if (data->hop_count < entry->hop_count) {
+			if ((data->hop_count*10+(data->rssi*10)/RSSI_MIN) < (entry->hop_count*10+(entry->rssi*10)/RSSI_MIN)) {
 				printk("Modifying existing entry \n");
 				entry->destination_sequence_number = data->destination_sequence_number;
 				entry->hop_count                   = data->hop_count;
@@ -270,6 +286,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			entry_data->source_number_of_elements      = bt_mesh_elem_count();
 			entry_data->destination_number_of_elements = data->source_number_of_elements;
 			entry_data->hop_count                      = data->hop_count;
+			entry_data->rssi 													 = data-> rssi;
 			entry_data->net_idx 											 = rx -> ctx.net_idx;
 			return 0;
 			}
@@ -291,14 +308,15 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		struct bt_mesh_route_entry *entry_data;
 		if (bt_mesh_create_entry_invalid(&entry_data))
 		{
-		entry_data->source_address                 = data->destination_address;
-		entry_data->destination_address            = data->source_address;
-		entry_data->destination_sequence_number    = data->source_sequence_number;
-		entry_data->next_hop                       = data->next_hop;
-		entry_data->source_number_of_elements      = 1; /* Will be corrected by RREP */
-		entry_data->destination_number_of_elements = data->source_number_of_elements;
-		entry_data->hop_count                      = data->hop_count;
-		entry_data->net_idx 												= rx -> ctx.net_idx;
+			entry_data->source_address                 = data->destination_address;
+			entry_data->destination_address            = data->source_address;
+			entry_data->destination_sequence_number    = data->source_sequence_number;
+			entry_data->next_hop                       = data->next_hop;
+			entry_data->source_number_of_elements      = 1; /* Will be corrected by RREP */
+			entry_data->destination_number_of_elements = data->source_number_of_elements;
+			entry_data->hop_count                      = data->hop_count;
+			entry_data->rssi 													 = data-> rssi;
+			entry_data->net_idx 											 = rx -> ctx.net_idx;
 		}
 		else
 		{
@@ -314,6 +332,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			printk("SEND RWAIT and SEND RREQ with flag I=1 \n");
 			data->I = 1;
 			data->hop_count = data->hop_count + 1;
+			data->rssi=(RREQ_GET_RSSI(buf) * (data->hop_count + 1 ) + rx->rssi)/(data->hop_count + 2);
 			rreq_send(data, 1, rx->ctx.net_idx); /* To RREQ's destination */
 			struct rwait_data temp; /* Dummy struct */
 			entry_data->hop_count = entry -> hop_count;
@@ -331,14 +350,16 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			struct bt_mesh_route_entry *entry_data;
 			if(bt_mesh_create_entry_invalid(&entry_data))
 			{
-			entry_data->source_address                 = data->destination_address;
-			entry_data->destination_address            = data->source_address;
-			entry_data->destination_sequence_number    = data->source_sequence_number;
-			entry_data->next_hop                       = data->next_hop;
-			entry_data->source_number_of_elements      = 1; /* UNKNOWN. Will be corrected by RREP */
-			entry_data->destination_number_of_elements = data->source_number_of_elements;
-			entry_data->hop_count                      = data->hop_count;
-			entry_data->net_idx 											 = rx -> ctx.net_idx;
+				entry_data->source_address                 = data->destination_address;
+				entry_data->destination_address            = data->source_address;
+				entry_data->destination_sequence_number    = data->source_sequence_number;
+				entry_data->next_hop                       = data->next_hop;
+				entry_data->source_number_of_elements      = 1; /* UNKNOWN. Will be corrected by RREP */
+				entry_data->destination_number_of_elements = data->source_number_of_elements;
+				entry_data->hop_count                      = data->hop_count;
+				entry_data->rssi 													 = data-> rssi;
+				entry_data->net_idx 											 = rx -> ctx.net_idx;
+
 			data->next_hop = data->next_hop + 1;
 			/* Relay the received RREQ */
 			return rreq_send(data, rx->ctx.recv_ttl - 1, rx->ctx.net_idx);
@@ -354,21 +375,13 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		else if (entry->destination_sequence_number < data->source_sequence_number)
 		{
 			entry->destination_sequence_number = data->source_sequence_number;
+			entry->rssi = data-> rssi;
+			data-> hop_count = data -> hop_count + 1;
 			bt_mesh_refresh_lifetime_invalid(entry);
 			return rreq_send(data, rx->ctx.recv_ttl - 1, rx->ctx.net_idx);
 		}
 	}
 
-	/* TESTING: Test sent RREQ data is correct. */
-		 printk("Source Address=%04x \n",RREQ_GET_SRC_ADDR(buf));
-	   printk("Destination Address=%04x \n",RREQ_GET_DST_ADDR(buf));
-	   printk("Source Number of Elements=%04x \n",RREQ_GET_SRC_NUMBER_OF_ELEMENTS(buf));
-	   printk("Hop Count=%d \n",RREQ_GET_HOP_COUNT(buf));
-	   printk("G Flag=%d \n",RREQ_GET_G_FLAG(buf));
-	   printk("D Flag=%d \n",RREQ_GET_D_FLAG(buf));
-	   printk("U Flag=%d \n",RREQ_GET_U_FLAG(buf));
-	   printk("I Flag=%d \n",RREQ_GET_I_FLAG(buf));
-	   printk("Destination Sequence Number=%08x \n",RREQ_GET_DST_SEQ(buf));
 
 	 return 0;
 }

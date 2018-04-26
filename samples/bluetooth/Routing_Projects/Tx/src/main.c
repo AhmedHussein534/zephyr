@@ -53,12 +53,14 @@
 #include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/transport.h>
 #include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/access.h>
 #include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/foundation.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/aodv_control_messages.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/routing_table.h>
 #include <stdio.h>
 
 #include <board.h>
 
 #define CID_INTEL 0x0002 /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR 0x0b0c /*Unicast Address*/
+#define NODE_ADDR 0x0009 /*Unicast Address*/
 #define GROUP_ADDR 0xc000 /*The Address to use for pub and sub*/
 
 /*
@@ -628,6 +630,49 @@ static const struct bt_mesh_prov prov = {
 /*
  * Bluetooth Ready Callback
  */
+void set_tables()
+{
+	struct bt_mesh_route_entry  temp_entry;
+	struct bt_mesh_route_entry  *entry=&temp_entry;
+	bt_mesh_create_entry_valid(&entry);
+	entry->source_address =  0x000c; 
+	entry->destination_address=0x0001;
+	entry->destination_sequence_number=0;
+	entry->next_hop=0x0005;
+	entry->source_number_of_elements=4;
+	entry->destination_number_of_elements=4;
+	entry->hop_count=1;
+	entry->net_idx=0;
+	view_valid_list();
+	struct bt_mesh_route_entry  temp_entry2;
+	struct bt_mesh_route_entry  *entry2=&temp_entry2;
+	bt_mesh_create_entry_valid(&entry2);
+	entry2->source_address =  0x0001; 
+	entry2->destination_address=0x000c;
+	entry2->destination_sequence_number=0;
+	entry2->next_hop=0x000c;
+	entry2->source_number_of_elements=4;
+	entry2->destination_number_of_elements=4;
+	entry2->hop_count=1;
+	entry2->net_idx=0;
+	view_valid_list();
+
+
+	struct hello_msg_list_entry  temp_entry_hello;
+	struct hello_msg_list_entry  *entry_hello=&temp_entry_hello;
+	hello_msg_list_create_entry(&entry_hello);
+	entry_hello->source_address=0x0005;
+	entry_hello->net_idx=0;
+	
+	view_hello_msg_list();
+	printk("second entry \n");
+	struct hello_msg_list_entry  temp_entry_hello2;
+	struct hello_msg_list_entry  *entry_hello2=&temp_entry_hello2;
+	hello_msg_list_create_entry(&entry_hello2);
+	entry_hello2->source_address=0x000c;
+	view_hello_msg_list();
+}
+
 
  static void configure(void)
  {
@@ -656,6 +701,7 @@ static const struct bt_mesh_prov prov = {
   bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_GEN_ONOFF_CLI, &pub, NULL);
 
  	printk("Configuration complete\n");
+ 	set_tables();
  }
 
 

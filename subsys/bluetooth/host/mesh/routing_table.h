@@ -3,9 +3,6 @@
  *
  *  @bug No known bugs.
  */
-
- /* -- Includes -- */
-
 /*DEFINITIONS*/
 #define NUMBER_OF_ENTRIES 20    /* Maximum number of entries in the table */
 #define ALLIGNED 4              /* Memory Allignment */
@@ -13,6 +10,10 @@
 #define ENTRY_SIZE sizeof(struct bt_mesh_route_entry)
 #define LIFETIME  K_SECONDS(120)
 #define RREQ_INTERVAL_WAIT K_MSEC(1000)
+
+//sys_slist_t valid_list;
+/** @brief Linked list holding pointers to the invalid entries of the routing tables. */
+//sys_slist_t invalid_list;
 
 /** @brief Entry data of routing table */
 struct bt_mesh_route_entry {
@@ -34,9 +35,9 @@ struct bt_mesh_route_entry {
 void bt_mesh_routing_table_init();
 
 /* Create Entry Functions */
-bool bt_mesh_create_entry_valid(struct bt_mesh_route_entry *entry_data);
-bool bt_mesh_create_entry_invalid(struct bt_mesh_route_entry *entry_data);
-bool bt_mesh_create_entry_invalid_with_cb(struct bt_mesh_route_entry *entry_data, void (*timer_cb)(struct k_timer *timer_id));
+bool bt_mesh_create_entry_valid(struct bt_mesh_route_entry **entry_data);
+bool bt_mesh_create_entry_invalid(struct bt_mesh_route_entry **entry_data);
+bool bt_mesh_create_entry_invalid_with_cb(struct bt_mesh_route_entry **entry_data, void (*timer_cb)(struct k_timer *timer_id));
 
 /* Search Entry Functions */
 bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_address, struct bt_mesh_route_entry **entry);
@@ -50,6 +51,16 @@ bool bt_mesh_search_valid_source_with_range(u16_t source_address, u16_t destinat
 bool bt_mesh_search_invalid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, struct bt_mesh_route_entry **entry);
 bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, struct bt_mesh_route_entry **entry);
 
+
+/* _RERR_ */
+bool bt_mesh_search_valid_destination_with_idx(u16_t source_address, u16_t destination_address,u16_t net_idx, struct bt_mesh_route_entry **entry);
+void bt_mesh_search_valid_with_cb(u16_t destination_address, u16_t next_hop, u16_t net_idx, void (*cb)(struct bt_mesh_route_entry *));
+bool bt_mesh_search_next_hop_with_net_idx(u16_t next_hop_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
+void bt_mesh_search_nexthop_valid_with_cb(u16_t nexthop, u16_t net_idx,void (*cb)(struct bt_mesh_route_entry *));
+/* _RERR_ */
+
+
+/**/
 /* Delete Entry Functions */
 void bt_mesh_delete_entry_valid(struct k_timer *timer_id);
 void bt_mesh_delete_entry_invalid(struct k_timer *timer_id);
@@ -59,9 +70,10 @@ void bt_mesh_refresh_lifetime_valid(struct bt_mesh_route_entry *entry);
 void bt_mesh_refresh_lifetime_invalid(struct bt_mesh_route_entry *entry);
 
 /* Miscellaneous */
-bool bt_mesh_validate_route(u16_t source_address, u16_t destination_address);
-bool bt_mesh_invalidate_route(u16_t source_address, u16_t destination_address);
+bool bt_mesh_validate_route(struct bt_mesh_route_entry *entry);
+bool bt_mesh_invalidate_route(struct bt_mesh_route_entry *entry);
 
 /* Test Functions */
-/* void view_valid_list();
-void view_invalid_list(); */
+
+void view_valid_list();
+void view_invalid_list();

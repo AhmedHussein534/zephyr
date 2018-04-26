@@ -824,6 +824,8 @@ static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 		case TRANS_CTL_OP_RWAIT:
 		 	bt_mesh_trans_rwait_recv(rx,buf);
 			return 0;
+		case TRANS_CTL_OP_RERR:
+			return bt_mesh_trans_rerr_recv(rx,buf);
 		}
 	}
 	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND) && !bt_mesh_lpn_established()) {

@@ -21,13 +21,12 @@ extern k_tid_t const _idle_thread;
 
 extern void _add_thread_to_ready_q(struct k_thread *thread);
 extern void _remove_thread_from_ready_q(struct k_thread *thread);
-extern void _reschedule_threads(int key);
+extern int _reschedule(int key);
 extern void k_sched_unlock(void);
 extern void _pend_thread(struct k_thread *thread,
 			 _wait_q_t *wait_q, s32_t timeout);
-extern void _pend_current_thread(_wait_q_t *wait_q, s32_t timeout);
+extern int _pend_current_thread(int key, _wait_q_t *wait_q, s32_t timeout);
 extern void _move_thread_to_end_of_prio_q(struct k_thread *thread);
-extern int __must_switch_threads(void);
 extern int _is_thread_time_slicing(struct k_thread *thread);
 extern void _update_time_slice_before_swap(void);
 #ifdef _NON_OPTIMIZED_TICKS_PER_SEC
@@ -59,26 +58,6 @@ static inline int _is_idle_thread_ptr(k_tid_t thread)
 	return thread == _idle_thread;
 #endif
 }
-
-#ifdef CONFIG_MULTITHREADING
-#define _VALID_PRIO(prio, entry_point) \
-	(((prio) == K_IDLE_PRIO && _is_idle_thread(entry_point)) || \
-		 (_is_prio_higher_or_equal((prio), \
-			K_LOWEST_APPLICATION_THREAD_PRIO) && \
-		  _is_prio_lower_or_equal((prio), \
-			K_HIGHEST_APPLICATION_THREAD_PRIO)))
-
-#define _ASSERT_VALID_PRIO(prio, entry_point) do { \
-	__ASSERT(_VALID_PRIO((prio), (entry_point)), \
-		 "invalid priority (%d); allowed range: %d to %d", \
-		 (prio), \
-		 K_LOWEST_APPLICATION_THREAD_PRIO, \
-		 K_HIGHEST_APPLICATION_THREAD_PRIO); \
-	} while ((0))
-#else
-#define _VALID_PRIO(prio, entry_point) ((prio) == -1)
-#define _ASSERT_VALID_PRIO(prio, entry_point) __ASSERT((prio) == -1, "")
-#endif
 
 /*
  * The _is_prio_higher family: I created this because higher priorities are
@@ -143,6 +122,44 @@ static inline int _is_higher_prio_than_current(struct k_thread *thread)
 {
 	return _is_t1_higher_prio_than_t2(thread, _current);
 }
+
+#ifdef CONFIG_MULTITHREADING
+static inline int _is_valid_prio(int prio, void *entry_point)
+{
+	if (prio == K_IDLE_PRIO && _is_idle_thread(entry_point)) {
+		return 1;
+	}
+
+	if (!_is_prio_higher_or_equal(prio,
+				      K_LOWEST_APPLICATION_THREAD_PRIO)) {
+		return 0;
+	}
+
+	if (!_is_prio_lower_or_equal(prio,
+				     K_HIGHEST_APPLICATION_THREAD_PRIO)) {
+		return 0;
+	}
+
+	return 1;
+}
+
+#define _ASSERT_VALID_PRIO(prio, entry_point) do { \
+	__ASSERT(_is_valid_prio((prio), (entry_point)) == 1, \
+		 "invalid priority (%d); allowed range: %d to %d", \
+		 (prio), \
+		 K_LOWEST_APPLICATION_THREAD_PRIO, \
+		 K_HIGHEST_APPLICATION_THREAD_PRIO); \
+	} while ((0))
+#else
+static inline int _is_valid_prio(int prio, void *entry_point)
+{
+	ARG_UNUSED(entry_point);
+
+	return prio == -1;
+}
+#define _ASSERT_VALID_PRIO(prio, entry_point) \
+	__ASSERT(_is_valid_prio((prio)) == 1, "")
+#endif
 
 /* is thread currenlty cooperative ? */
 static inline int _is_coop(struct k_thread *thread)
@@ -243,15 +260,6 @@ static inline int _get_highest_ready_prio(void)
 	return abs_prio - _NUM_COOP_PRIO;
 }
 #endif
-
-/*
- * Checks if current thread must be context-switched out. The caller must
- * already know that the execution context is a thread.
- */
-static inline int _must_switch_threads(void)
-{
-	return _is_preempt(_current) && __must_switch_threads();
-}
 
 /*
  * Called directly by other internal kernel code.
@@ -481,25 +489,33 @@ _find_first_thread_to_unpend(_wait_q_t *wait_q, struct k_thread *from)
 
 /* Unpend a thread from the wait queue it is on. Thread must be pending. */
 /* must be called with interrupts locked */
-static inline void _unpend_thread(struct k_thread *thread)
-{
-	__ASSERT(thread->base.thread_state & _THREAD_PENDING, "");
+void _unpend_thread(struct k_thread *thread);
 
-	sys_dlist_remove(&thread->base.k_q_node);
-	_mark_thread_as_not_pending(thread);
-}
+/* Same, but does not abort current timeout */
+void _unpend_thread_no_timeout(struct k_thread *thread);
 
 /* unpend the first thread from a wait queue */
 /* must be called with interrupts locked */
-static inline struct k_thread *_unpend_first_thread(_wait_q_t *wait_q)
+struct k_thread *_unpend_first_thread(_wait_q_t *wait_q);
+
+static inline struct k_thread *_unpend1_no_timeout(_wait_q_t *wait_q)
 {
 	struct k_thread *thread = _find_first_thread_to_unpend(wait_q, NULL);
 
 	if (thread) {
-		_unpend_thread(thread);
+		_unpend_thread_no_timeout(thread);
 	}
 
 	return thread;
+}
+
+static inline void _ready_one_thread(_wait_q_t *wq)
+{
+	struct k_thread *th = _unpend_first_thread(wq);
+
+	if (th) {
+		_ready_thread(th);
+	}
 }
 
 #ifdef CONFIG_USERSPACE

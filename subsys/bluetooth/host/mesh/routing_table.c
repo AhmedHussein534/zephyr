@@ -588,14 +588,13 @@ void view_invalid_list()
 
 /* _RERR_ */
 
-
 void bt_mesh_search_valid_with_cb(u16_t destination_address, u16_t next_hop, u16_t net_idx,
 	 void (*cb)(struct bt_mesh_route_entry *))
 {	struct bt_mesh_route_entry *entry1=NULL;
 	k_sem_take(&valid_list_sem, K_FOREVER);
 	/*loop over the routing table with the given destination and */
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node)
-	{	/* Search for the destination and source addresses in their range of elements */
+	{
 		if ((destination_address == entry1->destination_address) && (next_hop==entry1->next_hop) && (net_idx==entry1->net_idx))
 			{						k_sem_give(&valid_list_sem);
 							  	cb(entry1);

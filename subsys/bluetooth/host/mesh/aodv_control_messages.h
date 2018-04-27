@@ -49,7 +49,9 @@
 /* _HELLO_*/
 
 /* Hello Message DEFINITIONS */
-#define HELLO_MSG_LIFETIME  K_SECONDS(5)
+#define HELLO_MSG_LIFETIME  K_SECONDS(20)
+//#define HELLO_MSG_SEND  K_SECONDS(5)
+
 /* _HELLO_*/
 
 
@@ -155,3 +157,4 @@ void bt_mesh_trans_rrep_rwait_list_init();
 /* _RERR_ */
 int hello_msg_list_create_entry(struct hello_msg_list_entry **entry_location);
 void view_hello_msg_list();
+void bt_mesh_trans_hello_msg_recv(u16_t src);

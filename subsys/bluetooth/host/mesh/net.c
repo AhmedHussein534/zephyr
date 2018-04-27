@@ -33,6 +33,7 @@
 #include "access.h"
 #include "foundation.h"
 #include "beacon.h"
+#include "routing_table.h"
 
 /* Minimum valid Mesh Network PDU length. The Network headers
  * themselves take up 9 bytes. After that there is a minumum of 1 byte
@@ -1219,7 +1220,15 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 	}
 
 	if (relay_to_adv(rx->net_if)) {
-		bt_mesh_adv_send(buf, NULL, NULL);
+
+		struct bt_mesh_route_entry *entry;
+		if(bt_mesh_search_valid_destination(rx->ctx.addr,rx->dst,&entry)){
+			bt_mesh_refresh_lifetime_valid(entry);
+			bt_mesh_adv_send(buf, NULL, NULL);
+		}
+		else{
+			printk("Destination Not Found = Not Relaying\n");
+		}
 	}
 
 done:

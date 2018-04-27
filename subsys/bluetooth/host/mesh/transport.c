@@ -793,6 +793,7 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 	       (hops == 1) ? "" : "s", feat);
 
 	bt_mesh_heartbeat(rx->ctx.addr, rx->dst, hops, feat);
+	bt_mesh_trans_hello_msg_recv(rx->ctx.addr);
 
 	return 0;
 }

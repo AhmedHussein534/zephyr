@@ -717,8 +717,10 @@ __syscall k_tid_t k_current_get(void);
  *
  * @retval 0 Thread spawning canceled.
  * @retval -EINVAL Thread has already started executing.
+ *
+ * @deprecated This API is deprecated.  Use k_thread_abort().
  */
-__syscall int k_thread_cancel(k_tid_t thread);
+__deprecated __syscall int k_thread_cancel(k_tid_t thread);
 
 /**
  * @brief Abort a thread.
@@ -2693,7 +2695,9 @@ static inline unsigned int _impl_k_sem_count_get(struct k_sem *sem)
 #define K_SEM_DEFINE(name, initial_count, count_limit) \
 	struct k_sem name \
 		__in_section(_k_sem, static, name) = \
-		_K_SEM_INITIALIZER(name, initial_count, count_limit)
+		_K_SEM_INITIALIZER(name, initial_count, count_limit); \
+	BUILD_ASSERT((count_limit) != 0); \
+	BUILD_ASSERT((initial_count) <= (count_limit));
 
 /** @} */
 
@@ -3948,7 +3952,7 @@ extern int k_poll_signal(struct k_poll_signal *signal, int result);
 /**
  * @internal
  */
-extern int _handle_obj_poll_events(sys_dlist_t *events, u32_t state);
+extern void _handle_obj_poll_events(sys_dlist_t *events, u32_t state);
 
 /** @} */
 

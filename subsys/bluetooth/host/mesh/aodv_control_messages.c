@@ -96,7 +96,9 @@ int hello_msg_list_search_entry(u16_t src, struct hello_msg_list_entry **entry_d
 void bt_mesh_delete_hello_msg_entry(struct hello_msg_list_entry *entry);
 /* _RERR_ */
 
-
+/* _TEST_ */
+//struct k_timer hello_send;        				/* hello timer (52B) */
+/* _TEST_ */
 
 
 /*static void view_rrep_rwait_list();*/
@@ -883,10 +885,16 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 
 
 /* _RERR_ */
-
+/* _TEST_ */
+//static void hello_publish(struct k_timer *timer_id);
+/* _TEST_ */
 void bt_mesh_trans_rerr_list_init()
 {
 	sys_slist_init(&rerr_list);
+  /* _TEST_ */
+  //k_timer_init (&hello_send, hello_publish, NULL);
+  //k_timer_start(&hello_send, HELLO_MSG_SEND, 0);
+  /* _TEST_ */
 }
 
 
@@ -985,7 +993,7 @@ bool bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *b
 		bt_mesh_search_valid_with_cb(destination_address,rx->ctx.addr,rx->ctx.net_idx,callback);
 	}
 	BT_DBG("received from =%04x : ", rx->dst);
-	
+
 		/*	loop over the RERR list and send each entry	*/
 	struct rerr_list_entry* rerr_rx_entry=NULL;
 	k_sem_take(&rerr_list_sem, K_FOREVER);
@@ -998,6 +1006,10 @@ bool bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *b
 }
 	k_sem_give(&rerr_list_sem);
 	view_valid_list();
+  view_invalid_list();
+  view_hello_msg_list();
+  view_rerr_list();
+
 	return true;
 }
 
@@ -1030,7 +1042,7 @@ void callback(struct bt_mesh_route_entry *entry1)
 		}
 			bt_mesh_invalidate_route(entry1);
 			bt_mesh_invalidate_route(entry);
-	}	
+	}
 }
 
 void view_rerr_list()
@@ -1072,7 +1084,7 @@ bool is_empty_hello_msg_list()
 /*Reham*/
 void bt_mesh_delete_hello_msg_entry_timer(struct k_timer *timer_id)
 {
-	printk("timer expired \n");
+	//printk("timer expired \n");
 	/*fetching the entry of the expired timer to get its next hop*/
 	struct hello_msg_list_entry *entry = CONTAINER_OF(timer_id, struct hello_msg_list_entry, lifetime);
 	printk("timer expired for source address=%04x \n", entry->source_address);
@@ -1087,7 +1099,7 @@ void bt_mesh_delete_hello_msg_entry_timer(struct k_timer *timer_id)
 	while(!is_empty_rerr())
 	{
 		SYS_SLIST_FOR_EACH_CONTAINER(&rerr_list, rerr_rx_entry, node)
-		{
+		{ printk(" Sending RERR to nexthop %04x \n",rerr_rx_entry->next_hop);
 			rerr_send(rerr_rx_entry);
 			bt_mesh_delete_rerr_entry(rerr_rx_entry); //TODO?
 		}
@@ -1095,18 +1107,21 @@ void bt_mesh_delete_hello_msg_entry_timer(struct k_timer *timer_id)
 	k_sem_give(&rerr_list_sem);
 
 	/*delete Hello Error entry*/
-	struct hello_msg_list_entry* hello_msg_entry=NULL;
+	//struct hello_msg_list_entry* hello_msg_entry=NULL;
 	k_sem_take(&hello_msg_list_sem, K_FOREVER);
-	while(!is_empty_hello_msg_list())
-	{
-		SYS_SLIST_FOR_EACH_CONTAINER(&hello_msg_list, hello_msg_entry, node)
-		{
-			bt_mesh_delete_hello_msg_entry(hello_msg_entry); //TODO?
-		}
-	}
+	//while(!is_empty_hello_msg_list())
+	//{
+		//SYS_SLIST_FOR_EACH_CONTAINER(&hello_msg_list, hello_msg_entry, node)
+		//{
+      bt_mesh_delete_hello_msg_entry(entry);
+			//bt_mesh_delete_hello_msg_entry(hello_msg_entry); //TODO?
+		//}
+	//}
 	k_sem_give(&hello_msg_list_sem);
-	view_hello_msg_list();
 	view_valid_list();
+  view_invalid_list();
+  view_hello_msg_list();
+  view_rerr_list();
 	return; /*TODO*/
 
 }
@@ -1118,6 +1133,58 @@ void bt_mesh_delete_hello_msg_entry(struct hello_msg_list_entry *entry )
 		k_sem_give(&hello_msg_list_sem);                            /*return semaphore */
 		k_mem_slab_free(&hello_msg_slab, (void **)&entry);  /*free space in slab*/
 }
+
+/* _TEST_*/
+// static void hello_publish(struct k_timer *timer_id)
+// {
+//  k_timer_start(&hello_send, HELLO_MSG_SEND, 0);
+//  u16_t feat = 0;
+//  struct __packed {
+//         u8_t  init_ttl;
+//         u16_t feat;
+//       } hb;
+//
+//   struct bt_mesh_msg_ctx ctx = {
+//     //.net_idx = entry_location->net_idx, //FIXME???
+//     .app_idx = BT_MESH_KEY_UNUSED,
+//     .addr = BT_MESH_ADDR_ALL_NODES,
+//     .send_ttl = 2,
+//   };
+//   struct bt_mesh_net_tx tx = {
+//   //  .sub = bt_mesh_subnet_get(entry_location->net_idx), //FIXME???
+//     .ctx = &ctx,
+//     .src = bt_mesh_primary_addr(),
+//     .xmit = bt_mesh_net_transmit_get(),
+//   };
+//
+//   hb.init_ttl = 2;
+//
+//    if (bt_mesh_relay_get() == BT_MESH_RELAY_ENABLED) {
+//      feat |= BT_MESH_FEAT_RELAY;
+//    }
+//
+//    if (bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_ENABLED) {
+//      feat |= BT_MESH_FEAT_PROXY;
+//    }
+//
+//    if (bt_mesh_friend_get() == BT_MESH_FRIEND_ENABLED) {
+//      feat |= BT_MESH_FEAT_FRIEND;
+//    }
+//
+//   #if defined(CONFIG_BT_MESH_LOW_POWER)
+//    if (bt_mesh.lpn.state != BT_MESH_LPN_DISABLED) {
+//      feat |= BT_MESH_FEAT_LOW_POWER;
+//    }
+//   #endif
+//
+//    hb.feat = sys_cpu_to_be16(feat);
+//
+//    BT_DBG("InitTTL %u feat 0x%04x", hb.init_ttl, feat);
+//    bt_mesh_ctl_send(&tx, TRANS_CTL_OP_HEARTBEAT, &hb, sizeof(hb),
+//         NULL, NULL, NULL);
+//
+// }
+/* _TEST_*/
 
 int hello_msg_list_create_entry(struct hello_msg_list_entry **entry_location)
 {
@@ -1139,7 +1206,7 @@ int hello_msg_list_create_entry(struct hello_msg_list_entry **entry_location)
 	/* Start the lifetime timer */
 	k_timer_init (&(*entry_location)->lifetime, bt_mesh_delete_hello_msg_entry_timer, NULL);
 	k_timer_start(&(*entry_location)->lifetime, HELLO_MSG_LIFETIME, 0);
-	return true;//TODO :  fix return
+  return true;//TODO :  fix return
 }
 
 
@@ -1169,13 +1236,15 @@ void bt_mesh_trans_hello_msg_recv(u16_t src)
   	struct hello_msg_list_entry temp_entry;
   	struct hello_msg_list_entry *entry = &temp_entry;
 	entry->source_address=src;
-
+    printk("hb source is: %04x",src);
   	if (hello_msg_list_search_entry(src, &entry))
   	{
 		k_timer_stop(&entry->lifetime);
-		struct k_timer temp_timer;
-		entry->lifetime = temp_timer;
-		k_timer_init(&entry->lifetime,bt_mesh_delete_hello_msg_entry_timer, NULL);
+		//struct k_timer temp_timer;
+		//entry->lifetime = temp_timer;
+		//k_timer_init(&entry->lifetime,bt_mesh_delete_hello_msg_entry_timer, NULL);
+    BT_DBG("COOL.");
+
 		k_timer_start(&entry->lifetime, HELLO_MSG_LIFETIME, 0);
 
   	}

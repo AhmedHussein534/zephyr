@@ -413,7 +413,7 @@ bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destin
 	struct bt_mesh_route_entry *entry1 = NULL;
 
 	k_sem_take(&invalid_list_sem, K_FOREVER); /*take semaphore */
-	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node){
+	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node){ //FIXME
 		if ((entry1->source_address >= source_address) &&
 		    (entry1->source_address < (source_address + source_number_of_elements)) &&
 		    (destination_address == entry1->destination_address)) {

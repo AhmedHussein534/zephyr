@@ -448,27 +448,26 @@ struct bt_mesh_app_key *bt_mesh_app_key_find(u16_t app_idx)
 int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 		       const struct bt_mesh_send_cb *cb, void *cb_data)
 {
-	const u8_t *key=NULL;
+	const u8_t *key;
 	u8_t *ad;
 	int err;
 	if(!bt_mesh_elem_find(tx->ctx->addr) ){
 		struct bt_mesh_route_entry *entry=NULL;
 		if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,&entry)){
 			printk("Destination Found\n");
-		}
-		else{
-			printk("Initiating Ring Search\n");
-			err=bt_mesh_trans_ring_search(tx);
-			if(!err){
-				return 0;
-			}
-			else
-			{
-				BT_ERR("Destination not found\n");
-				return err;
-			}
-		}
-
+	}
+	else{
+	printk("Initiating Ring Search\n");
+	err=bt_mesh_trans_ring_search(tx);
+	if(!err){
+		return 0;
+	}
+	else
+	{
+		BT_ERR("Destination not found\n");
+		return err;
+	}
+	}
 	}
 
 	if (net_buf_simple_tailroom(msg) < 4) {
@@ -487,13 +486,14 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	if (tx->ctx->app_idx == BT_MESH_KEY_DEV) {
 		key = bt_mesh.dev_key;
 		tx->aid = 0;
-	}
-	else if(tx->ctx->app_idx != BT_MESH_KEY_UNUSED){
+	} else {
 		struct bt_mesh_app_key *app_key;
+
 		app_key = bt_mesh_app_key_find(tx->ctx->app_idx);
 		if (!app_key) {
 			return -EINVAL;
 		}
+
 		if (tx->sub->kr_phase == BT_MESH_KR_PHASE_2 &&
 		    app_key->updated) {
 			key = app_key->keys[1].val;
@@ -515,15 +515,13 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	} else {
 		ad = NULL;
 	}
-	if(tx->ctx->app_idx != BT_MESH_KEY_UNUSED){
-		err = bt_mesh_app_encrypt(key, tx->ctx->app_idx == BT_MESH_KEY_DEV,
-						tx->aszmic, msg, ad, tx->src,
-						tx->ctx->addr, bt_mesh.seq,
-						BT_MESH_NET_IVI_TX);
+
+	err = bt_mesh_app_encrypt(key, tx->ctx->app_idx == BT_MESH_KEY_DEV,
+				  tx->aszmic, msg, ad, tx->src,
+				  tx->ctx->addr, bt_mesh.seq,
+				  BT_MESH_NET_IVI_TX);
 	if (err) {
 		return err;
-	}
-
 	}
 
 	if (tx->ctx->send_rel) {
@@ -532,7 +530,7 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 		err = send_unseg(tx, msg, cb, cb_data);
 	}
 
-	return err;
+return err;
 }
 
 int bt_mesh_trans_resend(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
@@ -1546,7 +1544,7 @@ void bt_mesh_trans_init(void)
 				       (i * CONFIG_BT_MESH_RX_SDU_MAX));
 		seg_rx[i].buf.data = seg_rx[i].buf.__buf;
 	}
-
+	bt_mesh_routing_table_init();
 	bt_mesh_trans_rrep_rwait_list_init(); /* Initialize the rrep_list */
 }
 

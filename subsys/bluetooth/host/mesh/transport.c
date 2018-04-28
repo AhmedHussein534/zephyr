@@ -787,8 +787,11 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 	feat = net_buf_simple_pull_be16(buf);
 
 	hops = (init_ttl - rx->ctx.recv_ttl + 1);
-
+	printk("HB received\n");
 	BT_DBG("src 0x%04x TTL %u InitTTL %u (%u hop%s) feat 0x%04x",
+	       rx->ctx.addr, rx->ctx.recv_ttl, init_ttl, hops,
+	       (hops == 1) ? "" : "s", feat);
+	printk("\n src 0x%04x TTL %u InitTTL %u (%u hop%s) feat 0x%04x \n",
 	       rx->ctx.addr, rx->ctx.recv_ttl, init_ttl, hops,
 	       (hops == 1) ? "" : "s", feat);
 
@@ -804,6 +807,8 @@ static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 	u8_t ctl_op = TRANS_CTL_OP(&hdr);
 
 	BT_DBG("OpCode 0x%02x len %u", ctl_op, buf->len);
+	printk("OpCode 0x%02x len %u \n", ctl_op, buf->len);
+	printk("ctl_recv from 0x%04x \n",rx->ctx.addr);
 	switch (ctl_op) {
 	case TRANS_CTL_OP_ACK:
 		return trans_ack(rx, hdr, buf, seq_auth);
@@ -940,6 +945,9 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 
 	BT_DBG("src 0x%04x dst 0x%04x ttl 0x%02x ctl 0x%02x", tx->src,
 	       tx->ctx->addr, tx->ctx->send_ttl, ctl_op);
+	printk("src 0x%04x dst 0x%04x ttl 0x%02x ctl 0x%02x \n", tx->src,
+	       tx->ctx->addr, tx->ctx->send_ttl, ctl_op);
+
 	BT_DBG("len %zu: %s", data_len, bt_hex(data, data_len));
 
 	if (data_len <= 11)
@@ -1435,6 +1443,8 @@ int bt_mesh_trans_recv(struct net_buf_simple *buf, struct bt_mesh_net_rx *rx)
 	}
 
 	BT_DBG("src 0x%04x dst 0x%04x seq 0x%08x friend_match %u",
+	       rx->ctx.addr, rx->dst, rx->seq, rx->friend_match);
+	printk("\n src 0x%04x dst 0x%04x seq 0x%08x friend_match %u \n",
 	       rx->ctx.addr, rx->dst, rx->seq, rx->friend_match);
 
 	/* Remove network headers */

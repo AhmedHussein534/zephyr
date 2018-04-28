@@ -4832,6 +4832,7 @@ static bool valid_le_scan_param(const struct bt_le_scan_param *param)
 
 int bt_le_scan_start(const struct bt_le_scan_param *param, bt_le_scan_cb_t cb)
 {
+	BT_DBG(" ");
 	int err;
 
 	/* Check that the parameters have valid values */

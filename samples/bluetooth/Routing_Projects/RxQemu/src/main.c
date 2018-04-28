@@ -8,9 +8,11 @@
 #include <stdio.h>
 #include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/net.h>
 #include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/transport.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/aodv_control_messages.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/routing_table.h>
 
 #define CID_INTEL 0x0002 /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR 0x0baf /*Unicast Address*/
+#define NODE_ADDR 0x0001 /*Unicast Address*/
 #define GROUP_ADDR 0xc000 /*The Address to use for pub and sub*/
 
 
@@ -254,6 +256,47 @@ static const struct bt_mesh_prov prov = {
 	.output_number = 0,
  #endif
 };
+void set_hb()
+{
+	struct hello_msg_list_entry  temp_entry_hello;
+	struct hello_msg_list_entry  *entry_hello=&temp_entry_hello;
+	hello_msg_list_create_entry(&entry_hello);
+	entry_hello->source_address=0x0006;
+	entry_hello->net_idx=net_idx;
+	view_hello_msg_list();
+}
+
+void set_tables()
+{
+	struct bt_mesh_route_entry  temp_entry;
+	struct bt_mesh_route_entry  *entry=&temp_entry;
+	bt_mesh_create_entry_valid(&entry);
+	entry->source_address =  0x0001;
+	entry->destination_address=0x000f;
+	entry->destination_sequence_number=0;
+	entry->next_hop=0x0006;
+	entry->source_number_of_elements=4;
+	entry->destination_number_of_elements=4;
+	entry->hop_count=1;
+	entry->net_idx=net_idx;
+	view_valid_list();
+
+
+	struct hello_msg_list_entry  temp_entry_hello;
+	struct hello_msg_list_entry  *entry_hello=&temp_entry_hello;
+	hello_msg_list_create_entry(&entry_hello);
+	entry_hello->source_address=0x0006;
+	entry_hello->net_idx=net_idx;
+/*
+	struct hello_msg_list_entry  temp_entry_hello2;
+	struct hello_msg_list_entry  *entry_hello2=&temp_entry_hello2;
+	hello_msg_list_create_entry(&entry_hello2);
+	entry_hello2->source_address=0x0009;
+	entry_hello2->net_idx=net_idx;
+*/
+	view_hello_msg_list();
+}
+
 
 
 static void configure(void)
@@ -272,7 +315,7 @@ static void configure(void)
 	/*Add Subscription, LED0 (ELEM 0) is Subscribing to GROUP_ADDR */
  	 bt_mesh_cfg_mod_sub_add(net_idx, addr, addr, GROUP_ADDR,BT_MESH_MODEL_ID_GEN_ONOFF_SRV, NULL);
 
-
+ 	//set_tables();
 
  }
 

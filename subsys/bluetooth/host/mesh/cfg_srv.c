@@ -3043,8 +3043,9 @@ static void hb_publish(struct k_work *work)
 	struct bt_mesh_model *model = cfg->model;
 	struct bt_mesh_subnet *sub;
 	u16_t period_ms;
-
+	printk("hb_publish\n");
 	BT_DBG("hb_pub.count: %u", cfg->hb_pub.count);
+	printk("hb_pub.count: %u \n", cfg->hb_pub.count);
 
 	sub = bt_mesh_subnet_get(cfg->hb_pub.net_idx);
 	if (!sub) {
@@ -3064,6 +3065,7 @@ static void hb_publish(struct k_work *work)
 	}
 
 	hb_send(model);
+
 
 	if (cfg->hb_pub.count != 0xffff) {
 		cfg->hb_pub.count--;
@@ -3168,7 +3170,7 @@ void bt_mesh_heartbeat(u16_t src, u16_t dst, u8_t hops, u16_t feat)
 
 	if (!cfg) {
 		BT_WARN("No configuaration server context available");
-		return;
+	//	return;
 	}
 
 	/*if (src != cfg->hb_sub.src || dst != cfg->hb_sub.dst) {
@@ -3191,6 +3193,7 @@ void bt_mesh_heartbeat(u16_t src, u16_t dst, u8_t hops, u16_t feat)
 	BT_DBG("src 0x%04x dst 0x%04x hops %u min %u max %u count %u", src,
 	       dst, hops, cfg->hb_sub.min_hops, cfg->hb_sub.max_hops,
 	       cfg->hb_sub.count);
+	printk("HB received\n");
 	printk("src 0x%04x dst 0x%04x hops %u min %u max %u count %u \n", src,
 	       dst, hops, cfg->hb_sub.min_hops, cfg->hb_sub.max_hops,
 	       cfg->hb_sub.count);

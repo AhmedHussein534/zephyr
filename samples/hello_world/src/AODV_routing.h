@@ -163,7 +163,7 @@ void view_valid_list ()
 	k_sem_take(&valid_list_sem,K_FOREVER); /*take semaphore */
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list,entry,node)
 	{
-	printk("address1=%04x,address2=%04x \n",entry->source_address,entry->destination_address);
+  	printk("address1=%04x,address2=%04x \n",entry->source_address,entry->destination_address);
 	}
 	k_sem_give(&valid_list_sem);
 }

@@ -860,6 +860,10 @@ int bt_mesh_net_send(struct bt_mesh_net_tx *tx, struct net_buf *buf,
 	BT_DBG("src 0x%04x dst 0x%04x len %u headroom %zu tailroom %zu",
 	       tx->src, tx->ctx->addr, buf->len, net_buf_headroom(buf),
 	       net_buf_tailroom(buf));
+	printk("src 0x%04x dst 0x%04x len %u headroom %zu tailroom %zu \n",
+	       tx->src, tx->ctx->addr, buf->len, net_buf_headroom(buf),
+	       net_buf_tailroom(buf));
+
 	BT_DBG("Payload len %u: %s", buf->len, bt_hex(buf->data, buf->len));
 	BT_DBG("Seq 0x%06x", bt_mesh.seq);
 
@@ -1226,8 +1230,9 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 			bt_mesh_refresh_lifetime_valid(entry);
 			bt_mesh_adv_send(buf, NULL, NULL);
 		}
-		else{
-			printk("Destination Not Found = Not Relaying\n");
+		else
+		{
+			printk("\nDestination Not Found = Not Relaying\n");
 		}
 	}
 

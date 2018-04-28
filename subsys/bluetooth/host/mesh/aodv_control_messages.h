@@ -39,60 +39,56 @@
 #define RWAIT_GET_SRC_SEQ_NUM(buf) buf->data[5] + (buf->data[6] << 8) + (buf->data[7] << 16) + (buf->data[8] << 24)
 #define RWAIT_GET_HOP_COUNT(buf) buf->data[9]
 
-/* _RERR_ */
 /* RERR DEFINITIONS */
 #define RERR_GET_DST_NUM(buf) buf->data[0]
 #define RERR_GET_DST_ADDR(buf,i) (buf->data[i] + (buf->data[i+1] << 8))
 #define RERR_GET_DST_SEQ_NUM(buf,i) (buf->data[i+2] + (buf->data[i+3] << 8) + (buf->data[i+4] << 16))
-/* _RERR_ */
-
-/* _HELLO_*/
 
 /* Hello Message DEFINITIONS */
 #define HELLO_MSG_LIFETIME  K_SECONDS(20)
-//#define HELLO_MSG_SEND  K_SECONDS(5)
 
-/* _HELLO_*/
+/*_Test_*/
+//#define HELLO_MSG_SEND  K_SECONDS(5)
+/* _Test_*/
 
 
 /* DATA */
-//sys_slist_t rrep_rwait_list;
 
 /** @brief RREQ data for transmission or reception. Contains the transport layer
  *				 RREQ PDU and the network layer credentials.
  */
 struct rreq_data {
-	u16_t source_address; 						 /* Address of RREQ originator (2B) */
-	u16_t destination_address;         /* Address of RREQ destination (2B)*/
-	u16_t next_hop; 									 /* Address of the next hop from the Network Layer (2B) */
-	u16_t source_number_of_elements; 	 /* Number of elements in RREQ originator (2B)*/
-	u8_t G:1, 												 /* Gratious RREP (1b) */
-			 D:1, 												 /* Destination shall only reply flag (1b) */
-			 U:1, 												 /* Unknown destination sequence number flag (1b)*/
-			 I:1; 									 			 /* Directed RREQ flag (1b)*/
-	u8_t hop_count; 									 /* Number of hops between RREQ originator and destination (1B) */
-	u32_t source_sequence_number;			 /* RREQ originator sequence number (3B) */
-	u32_t destination_sequence_number; /* Last known sequence number of the RREQ destination (3B) */
+	u16_t source_address; 				/* Address of RREQ originator (2B) */
+	u16_t destination_address;          /* Address of RREQ destination (2B)*/
+	u16_t next_hop; 					/* Address of the next hop from the Network Layer (2B) */
+	u16_t source_number_of_elements; 	/* Number of elements in RREQ originator (2B)*/
+	u8_t G:1, 							/* Gratious RREP (1b) */
+			 D:1, 						/* Destination shall only reply flag (1b) */
+			 U:1, 						/* Unknown destination sequence number flag (1b)*/
+			 I:1; 						/* Directed RREQ flag (1b)*/
+	u8_t hop_count; 					/* Number of hops between RREQ originator and destination (1B) */
+	u32_t source_sequence_number;		/* RREQ originator sequence number (3B) */
+	u32_t destination_sequence_number;  /* Last known sequence number of the RREQ destination (3B) */
 };
 
 /** @brief List holding some data received by RWAIT or RREP.
  */
  struct rrep_rwait_list_entry {
 	u16_t destination_address;         /* RREQ destination (2B)*/
-	u8_t hop_count;         	 	 			 /* Number of hops between RREQ originator and destination (1B) */
-	sys_snode_t node;      						 /* Linkedlist node (4B) */
+	u8_t hop_count;         	 	 	/* Number of hops between RREQ originator and destination (1B) */
+	sys_snode_t node;      				/* Linkedlist node (4B) */
 };
 
 /** @brief RREP data for transmission or reception. Contains the transport layer
  *				 RREP PDU and the network layer credentials.
  */
  struct rrep_data {
-	bool R;														 		/* Repairable Flag (1b) */
-	u16_t source_address;      				 		/* RREQ originator address (2B) */
-	u16_t destination_address;      	 		/* RREQ destination address (2B) */
+	bool R;									/* Repairable Flag (1b) */
+	u16_t source_address;      				/* RREQ originator address (2B) */
+	u16_t destination_address;      	 	/* RREQ destination address (2B) */
 	u32_t destination_sequence_number; 		/* RREQ destination sequence number (3B) */
-	u8_t hop_count; 									    /* Number of hops between RREQ originator and destination (1B) */
-	u16_t destination_number_of_elements; /* Number of elements in the RREQ destination (2B) */
+	u8_t hop_count; 						/* Number of hops between RREQ originator and destination (1B) */
+	u16_t destination_number_of_elements;   /* Number of elements in the RREQ destination (2B) */
 };
 
 /** @brief RWAIT data for transmission or reception. Contains the transport layer
@@ -102,59 +98,53 @@ struct rreq_data {
 	u16_t destination_address;         /* RREQ Destination (2B) */
 	u16_t source_address;              /* RREQ originator (2B) */
 	u32_t source_sequence_number;      /* RREQ originator sequence number (3B) */
-	u8_t hop_count;         					 /* Number of hops between RREQ originator and destination (1B) */
-	sys_snode_t node;       					 /* Linkedlist node (4B) */
+	u8_t hop_count;         			/* Number of hops between RREQ originator and destination (1B) */
+	sys_snode_t node;       			/* Linkedlist node (4B) */
 };
 
-/* _RERR_ */
 /** @brief RERR data for transmission or reception. Contains the transport layer
  *				 RERR PDU and the network layer credentials.
  */
 
  struct rerr_list_entry {
-	u8_t destination_number;
-	u16_t next_hop;
-	u16_t net_idx;
- 	u16_t destination_address[10];      	 	/* RERR unreachable destination address (2B) */
+	u8_t destination_number;				/*RERR number of unreachable destinations included in the PDU (1B)*/
+	u16_t next_hop;							/*RERR destination (2B)*/
+	u16_t net_idx;							/*RERR destination network index (2B)*/
+ 	u16_t destination_address[10];      	/* RERR unreachable destination address (2B) */
  	u32_t destination_sequence_number[10]; 	/* RERR unreachable destination sequence number (3B) */
-	sys_snode_t node;       					 	/* Linkedlist node (4B) */
+	sys_snode_t node;       				/* Linkedlist node (4B) */
 };
-/* _RERR_ */
 
-/* _HELLO_ */
-
-/** @brief TODO: comment
- */
-/*Reham*/
+/** @brief Hello message data for reception. Contrains the source of the hello message and its
+ *				network index
+*/
  struct hello_msg_list_entry {
-	u16_t source_address;         /* Hello message source address (2B)*/
- 	u16_t net_idx;
-	struct k_timer lifetime;        				/* Lifetime timer (52B) */
-	sys_snode_t node;      						 /* Linkedlist node (4B) */
+	u16_t source_address;       /* Hello message source address (2B)*/
+ 	u16_t net_idx;				/*Hello message source network index (2B)*/
+	struct k_timer lifetime;    /* Lifetime timer (52B) */
+	sys_snode_t node;      		/* Linkedlist node (4B) */
 };
-/* _HELLO_ */
 
 
 /* FUNCTIONS PROTOTYPES */
 /* RREQ FUNCTIONS */
-bool bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
+int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
 u8_t bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx);
 
 /* RREP FUNCTIONS */
-bool bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
+int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
 void bt_mesh_trans_rrep_rwait_list_init();
 
 /* RWAIT FUNCTIONS */
 void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
 
-/* _RERR_ */
+
 /*RERR FUNCTIONS*/
 bool bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
 void bt_mesh_trans_rerr_list_init();
-void bt_mesh_trans_rrep_rwait_list_init();
-//void callback(struct bt_mesh_route_entry *entry1);//FIXME
-//bool is_empty_rerr(); //FIXME
-/* _RERR_ */
+//void search_callback(struct bt_mesh_route_entry *entry1);//FIXME
+//bool is_empty_rerr_list(); //FIXME
 int hello_msg_list_create_entry(struct hello_msg_list_entry **entry_location);
 void view_hello_msg_list();
 void bt_mesh_trans_hello_msg_recv(u16_t src);
+void remove_neighbour(u16_t neighbour, u16_t net_idx);

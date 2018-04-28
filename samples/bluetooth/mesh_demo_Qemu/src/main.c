@@ -10,14 +10,13 @@
 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/mesh.h>
-#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/Zephyr/zephyr/subsys/bluetooth/host/mesh/foundation.h>
 
 #include "board.h"
 
 #define MOD_LF 0x0000
 
 #define GROUP_ADDR 0xc000
-#define PUBLISHER_ADDR  0x000d
+#define PUBLISHER_ADDR  0x0005
 
 #define OP_VENDOR_BUTTON BT_MESH_MODEL_OP_3(0x00, BT_COMP_ID_LF)
 
@@ -162,9 +161,9 @@ static void configure(void)
 //				    MOD_LF, BT_COMP_ID_LF, NULL);
 
 //#if NODE_ADDR == PUBLISHER_ADDR
-	{
+/*	{
 		struct bt_mesh_cfg_hb_pub pub = {
-			.dst = GROUP_ADDR,
+			.dst = BT_MESH_ADDR_ALL_NODES,
 			.count = 0xff,
 			.period = 0x05,
 			.ttl = 0x07,
@@ -174,13 +173,13 @@ static void configure(void)
 
 		bt_mesh_cfg_hb_pub_set(net_idx, addr, &pub, NULL);
 		printk("Publishing heartbeat messages\n");
-	}
+	}*/
 //#else
-/*	{
+	/*{
 		struct bt_mesh_cfg_hb_sub sub = {
-			.src = 0x0005,
-			.dst = GROUP_ADDR,
-			.period = 0x02,
+			.src = 0x000d,
+			.dst = BT_MESH_ADDR_ALL_NODES,
+			.period = 0x20,
 		};
 
 		bt_mesh_cfg_hb_sub_set(net_idx, addr, &sub, NULL);
@@ -192,6 +191,7 @@ static void configure(void)
 
 	board_play("100C100D100E100F100G100A100H");
 }
+
 static const u8_t dev_uuid[16] = { 0xdd, 0xdd };
 
 static const struct bt_mesh_prov prov = {

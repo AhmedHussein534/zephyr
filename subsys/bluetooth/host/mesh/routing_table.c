@@ -9,6 +9,7 @@
 #include <misc/slist.h>
 #include <string.h>
 #include "routing_table.h"
+#include "aodv_control_messages.h"
 
 /** @brief Linked list holding pointers to the valid entries of the routing tables. */
 sys_slist_t valid_list;
@@ -417,6 +418,121 @@ bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destin
 	return false;
 }
 
+/**
+*	@brief Search in the valid list by destination, next hop and network index.
+*
+*	@param destination_address
+*	@param next_hop
+*	@param net_idx
+*	@param void (*search_callback)(struct bt_mesh_route_entry *): callback function that's called each time
+*							an entry matches.
+*	@return : N/A
+*/
+void bt_mesh_search_valid_destination_nexthop_net_idx_with_cb(u16_t destination_address, u16_t next_hop, u16_t net_idx,
+	 void (*search_callback)(struct bt_mesh_route_entry *))
+{
+	struct bt_mesh_route_entry *entry1=NULL;
+	k_sem_take(&valid_list_sem, K_FOREVER);
+	/*loop over the routing table with the given destination and */
+	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node)
+	{
+		if ((destination_address == entry1->destination_address) && (next_hop==entry1->next_hop) && (net_idx==entry1->net_idx))
+		{
+			k_sem_give(&valid_list_sem);
+			search_callback(entry1);
+			k_sem_take(&valid_list_sem, K_FOREVER);
+		}
+	}
+	k_sem_give(&valid_list_sem);
+}
+
+/**
+*	@brief Search in the valid list by source and destination within certain network subnet.
+*
+*	@param source_address
+*	@param destination_address
+*	@param net_idx : network index
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (4th param).
+*/
+bool bt_mesh_search_valid_destination_with_net_idx(u16_t source_address, u16_t destination_address,u16_t net_idx, struct bt_mesh_route_entry **entry)
+{
+	struct bt_mesh_route_entry *entry1 = NULL;
+	k_sem_take(&valid_list_sem, K_FOREVER);
+	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node){
+		/* Search for the destination and source addresses in their range of elements */
+		if ((destination_address == entry1->destination_address) &&
+		    (source_address == entry1->source_address) &&
+		    (net_idx ==entry1->net_idx )) {
+			k_sem_give(&valid_list_sem);
+			*entry = entry1; //FIXME entry and entry1 might later point to a deleted entries by another thread
+			return true;
+		}
+	}
+	k_sem_give(&valid_list_sem);
+	return false;
+}
+
+/**
+*	@brief Search in the valid list by nect hop within certain network subnet.
+*
+*	@param next_hop_address
+*	@param net_idx : network index
+*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (3rd param).
+*/
+bool bt_mesh_search_valid_next_hop_with_net_idx(u16_t next_hop_address, u16_t net_idx, struct bt_mesh_route_entry **entry)
+{
+	struct bt_mesh_route_entry *entry1 = NULL;
+
+	k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
+	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node)
+	{
+		if ((entry1->next_hop == next_hop_address) && (entry1->net_idx == net_idx))
+		{
+			k_sem_give(&valid_list_sem);
+			*entry = entry1;
+			return true;
+		}
+	}
+	k_sem_give(&valid_list_sem);
+	return false;
+}
+
+/**
+*	@brief Search in the valid list by nect hop within certain network subnet.
+*
+*	@param next_hop_address
+*	@param net_idx : network index
+*	@param void (*search_callback)(struct bt_mesh_route_entry *) : callback function each time an entry is found.
+*
+*	@return : N/A
+*/
+
+void bt_mesh_search_valid_nexthop_net_idx_with_cb(u16_t nexthop, u16_t net_idx, void (*search_callback)(struct bt_mesh_route_entry *))
+{
+	struct bt_mesh_route_entry *entry1=NULL;
+	k_sem_take(&valid_list_sem, K_FOREVER);
+	/*loop over the routing table with the given destination and */
+	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node)
+	{	/* Search for the destination and source addresses in their range of elements */
+		if ((nexthop == entry1->next_hop) && (net_idx==entry1->net_idx))
+		{
+			k_sem_give(&valid_list_sem);
+			search_callback(entry1);
+			k_sem_take(&valid_list_sem, K_FOREVER);
+		}
+	}
+	k_sem_give(&valid_list_sem);
+}
+
+
 
 /* Delete Entry Functions */
 
@@ -430,11 +546,15 @@ void bt_mesh_delete_entry_valid(struct k_timer *timer_id)
 
 	/* container of timer_id to be deleted*/
 	struct bt_mesh_route_entry *entry = CONTAINER_OF(timer_id, struct bt_mesh_route_entry, lifetime);
+	u16_t neighbour =entry->next_hop;
+	u16_t net_idx =  entry->net_idx;
 	k_sem_take(&valid_list_sem, K_FOREVER);   							/* take semaphore */
 	sys_slist_find_and_remove(&valid_list, &entry->node);   /*delete node from linked list */
 	k_sem_give(&valid_list_sem);                            /*return semaphore */
 	k_mem_slab_free(&routing_table_slab, (void **)&entry);  /*free space in slab*/
 	printk("valid Entry Deleted \n");
+	remove_neighbour(neighbour, net_idx);
+
 }
 
 /**
@@ -586,75 +706,6 @@ void view_invalid_list()
 	k_sem_give(&invalid_list_sem);
 }
 
-/* _RERR_ */
-
-void bt_mesh_search_valid_with_cb(u16_t destination_address, u16_t next_hop, u16_t net_idx,
-	 void (*cb)(struct bt_mesh_route_entry *))
-{	struct bt_mesh_route_entry *entry1=NULL;
-	k_sem_take(&valid_list_sem, K_FOREVER);
-	/*loop over the routing table with the given destination and */
-	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node)
-	{
-		if ((destination_address == entry1->destination_address) && (next_hop==entry1->next_hop) && (net_idx==entry1->net_idx))
-			{						k_sem_give(&valid_list_sem);
-							  	cb(entry1);
-									k_sem_take(&valid_list_sem, K_FOREVER);
-			}
-	}
-						k_sem_give(&valid_list_sem);
-}
-
-bool bt_mesh_search_valid_destination_with_idx(u16_t source_address, u16_t destination_address,u16_t net_idx, struct bt_mesh_route_entry **entry)
-{
-	struct bt_mesh_route_entry *entry1 = NULL;
-	k_sem_take(&valid_list_sem, K_FOREVER);
-	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node){
-		/* Search for the destination and source addresses in their range of elements */
-		if ((destination_address == entry1->destination_address) &&
-		    (source_address == entry1->source_address) &&
-		    (net_idx ==entry1->net_idx )) {
-			k_sem_give(&valid_list_sem);
-			*entry = entry1; //FIXME entry and entry1 might later point to a deleted entries by another thread
-			return true;
-		}
-	}
-	k_sem_give(&valid_list_sem);
-	return false;
-}
 
 
-bool bt_mesh_search_next_hop_with_net_idx(u16_t next_hop_address, u16_t net_idx, struct bt_mesh_route_entry **entry)
-{
-	struct bt_mesh_route_entry *entry1 = NULL;
 
-	k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
-	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node)
-	{
-		if ((entry1->next_hop == next_hop_address) && (entry1->net_idx == net_idx))
-		{
-			k_sem_give(&valid_list_sem);
-			*entry = entry1;
-			return true;
-		}
-	}
-	k_sem_give(&invalid_list_sem);
-	return false;
-}
-
-void bt_mesh_search_nexthop_valid_with_cb(u16_t nexthop, u16_t net_idx,
-	 void (*cb)(struct bt_mesh_route_entry *))
-	 {	struct bt_mesh_route_entry *entry1=NULL;
-	k_sem_take(&valid_list_sem, K_FOREVER);
-	/*loop over the routing table with the given destination and */
-	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node)
-	{	/* Search for the destination and source addresses in their range of elements */
-		if ((nexthop == entry1->next_hop) && (net_idx==entry1->net_idx))
-		{
-			k_sem_give(&valid_list_sem);
-		  	cb(entry1);
-			k_sem_take(&valid_list_sem, K_FOREVER);
-		}
-	}
-	k_sem_give(&valid_list_sem);
-}
-/* _RERR_ */

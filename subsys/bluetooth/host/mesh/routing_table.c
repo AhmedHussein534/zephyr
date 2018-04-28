@@ -429,17 +429,16 @@ bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destin
 *	@return : N/A
 */
 void bt_mesh_search_valid_destination_nexthop_net_idx_with_cb(u16_t destination_address, u16_t next_hop, u16_t net_idx,
-	 void (*search_callback)(struct bt_mesh_route_entry *))
+	 void (*search_callback)(struct bt_mesh_route_entry *,struct bt_mesh_route_entry **)) 
 {
-	struct bt_mesh_route_entry *entry1=NULL;
+	struct bt_mesh_route_entry *entry1,*temp;
 	k_sem_take(&valid_list_sem, K_FOREVER);
-	/*loop over the routing table with the given destination and */
-	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node)
+	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(&valid_list, entry1,temp, node)
 	{
 		if ((destination_address == entry1->destination_address) && (next_hop==entry1->next_hop) && (net_idx==entry1->net_idx))
-		{
+		{						
 			k_sem_give(&valid_list_sem);
-			search_callback(entry1);
+			search_callback(entry1,&temp);
 			k_sem_take(&valid_list_sem, K_FOREVER);
 		}
 	}
@@ -515,17 +514,17 @@ bool bt_mesh_search_valid_next_hop_with_net_idx(u16_t next_hop_address, u16_t ne
 *	@return : N/A
 */
 
-void bt_mesh_search_valid_nexthop_net_idx_with_cb(u16_t nexthop, u16_t net_idx, void (*search_callback)(struct bt_mesh_route_entry *))
+void bt_mesh_search_valid_nexthop_net_idx_with_cb(u16_t nexthop, u16_t net_idx, void (*search_callback)(struct bt_mesh_route_entry *,struct bt_mesh_route_entry **))
 {
-	struct bt_mesh_route_entry *entry1=NULL;
+	struct bt_mesh_route_entry *entry1,*temp;
 	k_sem_take(&valid_list_sem, K_FOREVER);
 	/*loop over the routing table with the given destination and */
-	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node)
+	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(&valid_list, entry1, temp ,node)
 	{	/* Search for the destination and source addresses in their range of elements */
 		if ((nexthop == entry1->next_hop) && (net_idx==entry1->net_idx))
 		{
 			k_sem_give(&valid_list_sem);
-			search_callback(entry1);
+			search_callback(entry1,&temp);
 			k_sem_take(&valid_list_sem, K_FOREVER);
 		}
 	}

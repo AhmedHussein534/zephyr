@@ -104,7 +104,7 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
 						struct rwait_data rwait_data, struct bt_mesh_net_rx* rx, bool relay);
 static bool rerr_send(struct rerr_list_entry *data);
 static bool bt_mesh_search_rerr_list(u16_t next_hop,u16_t net_idx,struct rerr_list_entry **entry);
-void search_callback(struct bt_mesh_route_entry *entry_found);
+void search_callback(struct bt_mesh_route_entry *entry_found, struct bt_mesh_route_entry **temp);
 static bool bt_mesh_create_rerr_entry(struct rerr_list_entry **entry_data);
 static void bt_mesh_delete_rerr_entry(struct rerr_list_entry *entry);
 static void view_rerr_list();
@@ -1138,11 +1138,11 @@ bool bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *b
  *	@return : 0 on sucess, -ENOSR if memory allocation timeout RANA
  */
 
-void search_callback(struct bt_mesh_route_entry *entry_found)
+void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_route_entry **temp)
 {					/*Terminal node*/
 	if ( entry_found->source_address==bt_mesh_primary_addr())
 	{
-		bt_mesh_invalidate_route(entry_found); //TODO: delete it instead
+		bt_mesh_invalidate_route(entry_found); 
 		remove_neighbour(entry_found->next_hop, entry_found->net_idx);
 	}
 	else /*I-node*/
@@ -1151,21 +1151,36 @@ void search_callback(struct bt_mesh_route_entry *entry_found)
 		struct rerr_list_entry *rerr_entry=NULL;
 		bt_mesh_search_valid_destination_with_net_idx(entry_found->destination_address,entry_found->source_address,entry_found->net_idx,&entry);
 		if (bt_mesh_search_rerr_list(entry->next_hop,entry->net_idx, &rerr_entry)) 
-		{/*Add another dst*/
-				rerr_entry->destination_address[rerr_entry->destination_number]=entry_found->destination_address;
+		{
+			/*Add another dst*/
+    		bool flag=true;
+      		for (int i=0; i<rerr_entry->destination_number;i++)
+            {
+            	if (rerr_entry->destination_address[i]==entry_found->destination_address)
+                    flag=false;
+            }
+        	if(flag)
+			{
+        		rerr_entry->destination_address[rerr_entry->destination_number]=entry_found->destination_address;
 				rerr_entry->destination_sequence_number[rerr_entry->destination_number]=entry_found->destination_sequence_number;
 				rerr_entry->destination_number++ ;
+      		}
 		}
 		else /*create RERR entry */
 		{
-			bt_mesh_create_rerr_entry(&rerr_entry); 
+			bt_mesh_create_rerr_entry(&rerr_entry);
 			rerr_entry->destination_number=1;
 			rerr_entry->next_hop=entry->next_hop;
 			rerr_entry->net_idx=entry_found->net_idx;
 			rerr_entry->destination_address[0]=entry_found->destination_address;
 			rerr_entry->destination_sequence_number[0]=entry_found->destination_sequence_number;
 		}
+
+
 			bt_mesh_invalidate_route(entry_found);
+			sys_snode_t * temp_node=sys_slist_peek_next(&((*temp)->node));
+			if(entry==(*temp) && (*temp) !=NULL && temp_node!= NULL)
+				(*temp)=CONTAINER_OF(temp_node,struct bt_mesh_route_entry,node);
 			remove_neighbour(entry_found->next_hop, entry_found->net_idx);		
 			bt_mesh_invalidate_route(entry);
 			remove_neighbour(entry->next_hop, entry->net_idx);

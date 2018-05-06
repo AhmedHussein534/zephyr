@@ -102,22 +102,19 @@ static int rrep_send(struct rrep_data *RREP_msg,u16_t net_idx, u16_t dst );
 static int rrep_rwait_list_create_entry(struct rrep_rwait_list_entry *entry_data);
 static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_entry *destination_entry,
 						struct rwait_data rwait_data, struct bt_mesh_net_rx* rx, bool relay);
-static bool rerr_send(struct rerr_list_entry *data);
-static bool bt_mesh_search_rerr_list(u16_t next_hop,u16_t net_idx,struct rerr_list_entry **entry);
+static int rerr_send(struct rerr_list_entry *data);
+static bool rerr_list_search_entry(u16_t next_hop,u16_t net_idx,struct rerr_list_entry **entry);
 void search_callback(struct bt_mesh_route_entry *entry_found, struct bt_mesh_route_entry **temp);
-static bool bt_mesh_create_rerr_entry(struct rerr_list_entry **entry_data);
-static void bt_mesh_delete_rerr_entry(struct rerr_list_entry *entry);
+static int rerr_list_create_entry(struct rerr_list_entry **entry_data);
+static void rerr_list_delete_entry(struct rerr_list_entry *entry);
 static void view_rerr_list();
 static bool is_empty_rerr_list();
 static bool is_empty_hello_msg_list();
 static bool hello_msg_list_search_entry(u16_t src, struct hello_msg_list_entry **entry_data);
-static void bt_mesh_delete_hello_msg_entry(struct hello_msg_list_entry *entry);
-static void bt_mesh_delete_hello_msg_entry_timer(struct k_timer *timer_id);
-void add_neighbour(u16_t neighbour, u16_t net_idx);
+static void hello_msg_list_delete_entry(struct hello_msg_list_entry *entry);
+static void hello_msg_list_delete_entry_timer(struct k_timer *timer_id);
+static void add_neighbour(u16_t neighbour, u16_t net_idx);
 void remove_neighbour(u16_t neighbour, u16_t net_idx);
-/* _TEST_ */
-//struct k_timer hello_send;        				/* hello timer (52B) */
-/* _TEST_ */
 
 
 /*static void view_rrep_rwait_list();*/
@@ -257,6 +254,7 @@ static void ring_search_timer(struct k_timer *timer_id)
  *	@return  0 on Success
  * 			 -ELOCAL when source address is a local element	
  *			 -ENORREQ when RREP interval has expired
+ *			 -ENOSR if memory allocation timeout
  */
 int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 {
@@ -309,20 +307,21 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			return 0;
 		}
 		/* Destination has received the first RREQ */
-		else {
+		else
+		{
 			printk("Creating entry and waiting for RREQ wait interval \n");
 			/* Create a reverse entry */
 			struct bt_mesh_route_entry *entry_data;
 			if(bt_mesh_create_entry_invalid_with_cb(&entry_data, rreq_recv_cb))
 			{
-			entry_data->source_address                 = data->destination_address;
-			entry_data->destination_address            = data->source_address;
-			entry_data->destination_sequence_number    = data->source_sequence_number;
-			entry_data->next_hop                       = data->next_hop;
-			entry_data->source_number_of_elements      = bt_mesh_elem_count();
-			entry_data->destination_number_of_elements = data->source_number_of_elements;
-			entry_data->hop_count                      = data->hop_count;
-			entry_data->net_idx 											 = rx -> ctx.net_idx;
+				entry_data->source_address                 = data->destination_address;
+				entry_data->destination_address            = data->source_address;
+				entry_data->destination_sequence_number    = data->source_sequence_number;
+				entry_data->next_hop                       = data->next_hop;
+				entry_data->source_number_of_elements      = bt_mesh_elem_count();
+				entry_data->destination_number_of_elements = data->source_number_of_elements;
+				entry_data->hop_count                      = data->hop_count;
+				entry_data->net_idx 											 = rx -> ctx.net_idx;
 			}
 			return 0;
 		}
@@ -332,25 +331,25 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	 *   - send a directed RREQ to RREQ's destination
 	*/
 	else if (bt_mesh_search_valid_destination_without_source(data->destination_address, &entry)
-						&& data->D == false && data->I == false)
-		{
+					&& data->D == false && data->I == false)
+	{
 		printk("Intermediate Node received a flooded RREQ and has route to destination \n");
 		/* Create a reverse entry */
 		struct bt_mesh_route_entry *entry_data;
 		if (bt_mesh_create_entry_invalid(&entry_data))
 		{
-		entry_data->source_address                 = data->destination_address;
-		entry_data->destination_address            = data->source_address;
-		entry_data->destination_sequence_number    = data->source_sequence_number;
-		entry_data->next_hop                       = data->next_hop;
-		entry_data->source_number_of_elements      = 1; /* Will be corrected by RREP */
-		entry_data->destination_number_of_elements = data->source_number_of_elements;
-		entry_data->hop_count                      = data->hop_count;
-		entry_data->net_idx 												= rx -> ctx.net_idx;
+			entry_data->source_address                 = data->destination_address;
+			entry_data->destination_address            = data->source_address;
+			entry_data->destination_sequence_number    = data->source_sequence_number;
+			entry_data->next_hop                       = data->next_hop;
+			entry_data->source_number_of_elements      = 1; /* Will be corrected by RREP */
+			entry_data->destination_number_of_elements = data->source_number_of_elements;
+			entry_data->hop_count                      = data->hop_count;
+			entry_data->net_idx 												= rx -> ctx.net_idx;
 		}
 		else
 		{
-			return false;
+			return -ENOSR;
 		}
 
 		/* If the stored destination sequence number is fresher:
@@ -368,7 +367,8 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			rwait_send(data,entry_data,temp,rx,false); /* To RREQ's originator */
 		}
 	}
-	else {
+	else
+	{
 		/* Intermediate nodes that has no route to destination shall relay */
 		printk("Intermediate Node received a flooded RREQ - Relaying \n");
 		struct bt_mesh_route_entry *entry;
@@ -388,8 +388,9 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			entry_data->hop_count                      = data->hop_count;
 			entry_data->net_idx 											 = rx -> ctx.net_idx;
 			}
-			else {
-				return false;
+			else
+			{
+				return -ENOSR;
 			}
 			data->next_hop = data->next_hop + 1;
 			/* Relay the received RREQ */
@@ -686,8 +687,9 @@ int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 				add_neighbour(table_entry->next_hop, table_entry->net_idx);
 
 			}
-			else {
-					return false;
+			else
+			{
+				return -ENOSR;
 			}
 			/* Create entry in rrep_rwait_list */
 			struct rrep_rwait_list_entry rrep_entry_temp;
@@ -700,7 +702,8 @@ int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	/* RREP is received by an intermediate node and should be directed
 	 * to RREQ originator by the invalid table entry created by RREQ
 	 */
-	else {
+	else
+	{
 		struct bt_mesh_route_entry *existing_entry;
 		/* Get the entry of reverse route created by RREQ */
 		if (bt_mesh_search_invalid_destination_with_range(data->destination_address,data->source_address,data->destination_number_of_elements, &existing_entry))
@@ -748,22 +751,6 @@ void bt_mesh_trans_rrep_rwait_list_init()
 	sys_slist_init(&rrep_rwait_list);
 }
 
-/* TESTING: view rrep_rwait_list content to check addresses
-static void view_rrep_rwait_list()
-{
-	if (sys_slist_is_empty(&rrep_rwait_list)) {
-		printk("RREP List is empty \n");
-		return;
-	}
-	struct rrep_rwait_list_entry *entry = NULL;
-	k_sem_take(&rrep_rwait_list_sem, K_FOREVER);
-	SYS_SLIST_FOR_EACH_CONTAINER(&rrep_rwait_list, entry, node){
-		printk("RREP List:Destination address=%04x\n",entry->destination_address);
-	}
-	k_sem_give(&rrep_rwait_list_sem);
-}
-*/
-
 
 /* RWAIT Functions */
 
@@ -808,7 +795,9 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
 		ctx.addr     = destination_entry->next_hop;  /* Next hop fetched from the routing table */
 		ctx.send_ttl = 3; /* FIXME */
 		tx.ctx  = &ctx;
-	} else   {
+	}
+	else
+	{
 		data = rwait_data;
 		ctx = rx->ctx;
 		tx.ctx  = &ctx;
@@ -934,10 +923,6 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 }
 
 
-/* _TEST_ */
-//static void hello_publish(struct k_timer *timer_id);
-/* _TEST_ */
-
 /**
  *	@brief Initializes the rerr_list
  *
@@ -948,10 +933,6 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 void bt_mesh_trans_rerr_list_init()
 {
 	sys_slist_init(&rerr_list);
-  /* _TEST_ */
-  //k_timer_init (&hello_send, hello_publish, NULL);
-  //k_timer_start(&hello_send, HELLO_MSG_SEND, 0);
-  /* _TEST_ */
 }
 
 /**
@@ -966,7 +947,7 @@ void bt_mesh_trans_rerr_list_init()
 *			- Implicit: Pointer to the found entry (3rd param).
 */
 
-bool bt_mesh_search_rerr_list(u16_t next_hop,u16_t net_idx,struct rerr_list_entry **entry)
+bool rerr_list_search_entry(u16_t next_hop,u16_t net_idx,struct rerr_list_entry **entry)
 {
 	struct rerr_list_entry *entry1 = NULL;
 	k_sem_take(&rerr_list_sem, K_FOREVER);
@@ -990,10 +971,10 @@ bool bt_mesh_search_rerr_list(u16_t next_hop,u16_t net_idx,struct rerr_list_entr
  *	@param entry_data: Pointer to structure of type rerr_list_entry
  *										 holding data to be stored.
  *
- *	@return True when allocation succeeds, False when no space is available.
+ *	@return : 0 on sucess, -ENOSR if memory allocation timeout
  */
 
-bool bt_mesh_create_rerr_entry(struct rerr_list_entry **entry_location)
+int rerr_list_create_entry(struct rerr_list_entry **entry_location)
 {
 	/* Insert a new node into rerr list */
 	if (k_mem_slab_alloc(&rerr_slab, (void **)&(*entry_location), 100) == 0)
@@ -1006,22 +987,24 @@ bool bt_mesh_create_rerr_entry(struct rerr_list_entry **entry_location)
 	else
 	{
 		/* Memory Allocation timeout */
-		return false;
+		return -ENOSR;
 	}
-	return true;
+	return 0;
 }
 /**
  *	@brief Delete rerr entry when lifetime expires.
  *
  *	@param entry: Pointer to struct of type rerr_list_entry of the entry to be deleted.
+ *
+ *	@return : N/A
  */
 
-void bt_mesh_delete_rerr_entry(struct rerr_list_entry *entry )
+void rerr_list_delete_entry(struct rerr_list_entry *entry )
 {
-		k_sem_take(&rerr_list_sem, K_FOREVER);   							/* take semaphore */
+		k_sem_take(&rerr_list_sem, K_FOREVER);   				/* take semaphore */
 		sys_slist_find_and_remove(&rerr_list, &entry->node);   /*delete node from linked list */
 		k_sem_give(&rerr_list_sem);                            /*return semaphore */
-		k_mem_slab_free(&rerr_slab, (void **)&entry);  /*free space in slab*/
+		k_mem_slab_free(&rerr_slab, (void **)&entry);  			/*free space in slab*/
 }
 /**
  *	@brief Called when a RERR needs to be sent. It sets the content of ctx and
@@ -1031,10 +1014,10 @@ void bt_mesh_delete_rerr_entry(struct rerr_list_entry *entry )
  *	@param data: Pointer to a structure of type rerr_list_entry that holds the data
  * 							 received from the transport and network layer.
  *
- *	@return : 0 on success. Otherwise, sending control message failed RANA
+ *	@return : 0 on success. Otherwise, sending control message failed
  */
 
-static bool rerr_send(struct rerr_list_entry *data)
+static int rerr_send(struct rerr_list_entry *data)
 {
 	/*only used by intermediate nodes*/
 	struct bt_mesh_msg_ctx ctx =
@@ -1081,9 +1064,9 @@ static bool rerr_send(struct rerr_list_entry *data)
  *	@param buf: Pointer to a structure of type net_buf_simple that holds
  *							the received RERR data.
  *
- *	@return : 0 on sucess, -ENOSR if memory allocation timeout RANA
+ *	@return : 0 on sucess
  */
-bool bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
+int bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 {
 	struct rerr_list_entry temp;
 	struct rerr_list_entry *data = &temp;
@@ -1102,28 +1085,26 @@ bool bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *b
 		destination_sequence_number= RERR_GET_DST_SEQ_NUM(buf,i*2 + i*3 +1);
  		BT_DBG("destination_address =%04x , destination_sequence_number = %04x  ", destination_address, destination_sequence_number);
  		/*invoke the function destination_address destination_sequence_number */
-		bt_mesh_search_valid_destination_nexthop_net_idx_with_cb(destination_address,rx->ctx.addr,rx->ctx.net_idx,search_callback);
-	
+		bt_mesh_search_valid_destination_nexthop_net_idx_with_cb(destination_address,rx->ctx.addr,rx->ctx.net_idx,search_callback);	
 	}
+
 	BT_DBG("received from =%04x : ", rx->dst);
 
-		/*	loop over the RERR list and send each entry	*/
+	/*	loop over the RERR list and send each entry	*/
 	struct rerr_list_entry* rerr_rx_entry=NULL;
-	//k_sem_take(&rerr_list_sem, K_FOREVER);
 	while(!is_empty_rerr_list())
-	{SYS_SLIST_FOR_EACH_CONTAINER(&rerr_list, rerr_rx_entry, node)
 	{
-		rerr_send(rerr_rx_entry);
-	 bt_mesh_delete_rerr_entry(rerr_rx_entry);
+		SYS_SLIST_FOR_EACH_CONTAINER(&rerr_list, rerr_rx_entry, node)
+		{
+			rerr_send(rerr_rx_entry);
+	 		rerr_list_delete_entry(rerr_rx_entry);
+		}
 	}
-}
-	//k_sem_give(&rerr_list_sem);
 	view_valid_list();
-  view_invalid_list();
-  view_hello_msg_list();
-  view_rerr_list();
-
-	return true;
+  	view_invalid_list();
+  	view_hello_msg_list();
+  	view_rerr_list();
+	return 0;
 }
 
 /**
@@ -1135,7 +1116,7 @@ bool bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *b
  *	@param buf: Pointer to a structure of type net_buf_simple that holds
  *							the received RERR data.
  *
- *	@return : 0 on sucess, -ENOSR if memory allocation timeout RANA
+ *	@return : N/A
  */
 
 void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_route_entry **temp)
@@ -1150,7 +1131,7 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
 		struct bt_mesh_route_entry *entry = NULL;
 		struct rerr_list_entry *rerr_entry=NULL;
 		bt_mesh_search_valid_destination_with_net_idx(entry_found->destination_address,entry_found->source_address,entry_found->net_idx,&entry);
-		if (bt_mesh_search_rerr_list(entry->next_hop,entry->net_idx, &rerr_entry)) 
+		if (rerr_list_search_entry(entry->next_hop,entry->net_idx, &rerr_entry)) 
 		{
 			/*Add another dst*/
     		bool flag=true;
@@ -1168,7 +1149,7 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
 		}
 		else /*create RERR entry */
 		{
-			bt_mesh_create_rerr_entry(&rerr_entry);
+			rerr_list_create_entry(&rerr_entry);
 			rerr_entry->destination_number=1;
 			rerr_entry->next_hop=entry->next_hop;
 			rerr_entry->net_idx=entry_found->net_idx;
@@ -1176,14 +1157,13 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
 			rerr_entry->destination_sequence_number[0]=entry_found->destination_sequence_number;
 		}
 
-
-			bt_mesh_invalidate_route(entry_found);
-			sys_snode_t * temp_node=sys_slist_peek_next(&((*temp)->node));
-			if(entry==(*temp) && (*temp) !=NULL && temp_node!= NULL)
-				(*temp)=CONTAINER_OF(temp_node,struct bt_mesh_route_entry,node);
-			remove_neighbour(entry_found->next_hop, entry_found->net_idx);		
-			bt_mesh_invalidate_route(entry);
-			remove_neighbour(entry->next_hop, entry->net_idx);
+		bt_mesh_invalidate_route(entry_found);
+		sys_snode_t * temp_node=sys_slist_peek_next(&((*temp)->node));
+		if(entry==(*temp) && (*temp) !=NULL && temp_node!= NULL)
+			(*temp)=CONTAINER_OF(temp_node,struct bt_mesh_route_entry,node);
+		remove_neighbour(entry_found->next_hop, entry_found->net_idx);		
+		bt_mesh_invalidate_route(entry);
+		remove_neighbour(entry->next_hop, entry->net_idx);
 	}
 }
 /**
@@ -1193,19 +1173,26 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
  */
 void view_rerr_list()
 {
-	if (sys_slist_is_empty(&rerr_list)) {
+	if (sys_slist_is_empty(&rerr_list))
+	{
 		printk("rerr is empty \n");
 		return;
 	}
 	struct rerr_list_entry *entry = NULL;
 	k_sem_take(&rerr_list_sem, K_FOREVER);
-	SYS_SLIST_FOR_EACH_CONTAINER(&rerr_list, entry, node){
+	SYS_SLIST_FOR_EACH_CONTAINER(&rerr_list, entry, node)
+	{
 		printk("\x1b[34mRERR List:destination number=%04x,nexthop address=%04x \x1b[0m\n", entry->destination_number, entry->next_hop);
 	}
 	k_sem_give(&rerr_list_sem);
 }
 
 
+/**
+ *	@brief Checks if the RERR list is empty.
+ *				 
+ *	@return : True  if list is empty, false otherwise.
+ */
 bool is_empty_rerr_list()
 {
 	if (sys_slist_is_empty(&rerr_list)) {
@@ -1215,6 +1202,11 @@ bool is_empty_rerr_list()
 	return false;
 }
 
+/**
+ *	@brief Checks if the Hello message list is empty.
+ *				 
+ *	@return : True  if list is empty, false otherwise.
+ */
 bool is_empty_hello_msg_list()
 {
 	if (sys_slist_is_empty(&hello_msg_list))
@@ -1226,9 +1218,14 @@ bool is_empty_hello_msg_list()
 	return false;
 }
 
-
-
-void bt_mesh_delete_hello_msg_entry_timer(struct k_timer *timer_id)
+/**
+ *	@brief invoked the hello message timer expires.
+ *
+ *	@param timer_id: Pointer to struct of type k_timer holding lifetime of an entry.
+ *
+ *  @return : N/A
+ */
+void hello_msg_list_delete_entry_timer(struct k_timer *timer_id)
 {
 	//printk("timer expired \n");
 	/*fetching the entry of the expired timer to get its next hop*/
@@ -1241,40 +1238,34 @@ void bt_mesh_delete_hello_msg_entry_timer(struct k_timer *timer_id)
 
 	/*	loop over the RERR list and send each entry	*/
 	struct rerr_list_entry* rerr_rx_entry=NULL;
-	//k_sem_take(&rerr_list_sem, K_FOREVER);
 	while(!is_empty_rerr_list())
 	{
 		SYS_SLIST_FOR_EACH_CONTAINER(&rerr_list, rerr_rx_entry, node)
-		{ printk(" Sending RERR to nexthop %04x \n",rerr_rx_entry->next_hop);
+		{
+			printk(" Sending RERR to nexthop %04x \n",rerr_rx_entry->next_hop);
 			rerr_send(rerr_rx_entry);
-			bt_mesh_delete_rerr_entry(rerr_rx_entry); //TODO?
+			rerr_list_delete_entry(rerr_rx_entry); 
 		}
 	}
-	//k_sem_give(&rerr_list_sem);
-
-	/*delete Hello Error entry*/
-	//struct hello_msg_list_entry* hello_msg_entry=NULL;
-	//k_sem_take(&hello_msg_list_sem, K_FOREVER);
-	//while(!is_empty_hello_msg_list())
-	//{
-		//SYS_SLIST_FOR_EACH_CONTAINER(&hello_msg_list, hello_msg_entry, node)
-		//{
-      bt_mesh_delete_hello_msg_entry(entry);
-			//bt_mesh_delete_hello_msg_entry(hello_msg_entry); //TODO?
-		//}
-	//}
-	//k_sem_give(&hello_msg_list_sem);
+	hello_msg_list_delete_entry(entry);
 	view_valid_list();
-  view_invalid_list();
-  view_hello_msg_list();
-  view_rerr_list();
-	return; /*TODO*/
-
+	view_invalid_list();
+	view_hello_msg_list();
+	view_rerr_list();
 }
-/*Reham*/
-void bt_mesh_delete_hello_msg_entry(struct hello_msg_list_entry *entry )
+
+
+/**
+ *	@brief Delete hello message entry when lifetime expires.
+ *
+ *	@param entry: pointer to struct of hello_msg_list_entry holding the entry to be deleted.
+ *
+ *  @return : N/A
+ */
+
+void hello_msg_list_delete_entry(struct hello_msg_list_entry *entry )
 {
-	printk("bt_mesh_delete_hello_msg_entry \n");
+	printk("hello_msg_list_delete_entry \n");
 	k_sem_take(&hello_msg_list_sem, K_FOREVER);   							/* take semaphore */
 	sys_slist_find_and_remove(&hello_msg_list, &entry->node);   /*delete node from linked list */
 	k_sem_give(&hello_msg_list_sem);                            /*return semaphore */
@@ -1282,57 +1273,14 @@ void bt_mesh_delete_hello_msg_entry(struct hello_msg_list_entry *entry )
 	view_hello_msg_list();		
 }
 
-/* _TEST_*/
-// static void hello_publish(struct k_timer *timer_id)
-// {
-//  k_timer_start(&hello_send, HELLO_MSG_SEND, 0);
-//  u16_t feat = 0;
-//  struct __packed {
-//         u8_t  init_ttl;
-//         u16_t feat;
-//       } hb;
-//
-//   struct bt_mesh_msg_ctx ctx = {
-//     //.net_idx = entry_location->net_idx, //FIXME???
-//     .app_idx = BT_MESH_KEY_UNUSED,
-//     .addr = BT_MESH_ADDR_ALL_NODES,
-//     .send_ttl = 2,
-//   };
-//   struct bt_mesh_net_tx tx = {
-//   //  .sub = bt_mesh_subnet_get(entry_location->net_idx), //FIXME???
-//     .ctx = &ctx,
-//     .src = bt_mesh_primary_addr(),
-//     .xmit = bt_mesh_net_transmit_get(),
-//   };
-//
-//   hb.init_ttl = 2;
-//
-//    if (bt_mesh_relay_get() == BT_MESH_RELAY_ENABLED) {
-//      feat |= BT_MESH_FEAT_RELAY;
-//    }
-//
-//    if (bt_mesh_gatt_proxy_get() == BT_MESH_GATT_PROXY_ENABLED) {
-//      feat |= BT_MESH_FEAT_PROXY;
-//    }
-//
-//    if (bt_mesh_friend_get() == BT_MESH_FRIEND_ENABLED) {
-//      feat |= BT_MESH_FEAT_FRIEND;
-//    }
-//
-//   #if defined(CONFIG_BT_MESH_LOW_POWER)
-//    if (bt_mesh.lpn.state != BT_MESH_LPN_DISABLED) {
-//      feat |= BT_MESH_FEAT_LOW_POWER;
-//    }
-//   #endif
-//
-//    hb.feat = sys_cpu_to_be16(feat);
-//
-//    BT_DBG("InitTTL %u feat 0x%04x", hb.init_ttl, feat);
-//    bt_mesh_ctl_send(&tx, TRANS_CTL_OP_HEARTBEAT, &hb, sizeof(hb),
-//         NULL, NULL, NULL);
-//
-// }
-/* _TEST_*/
+/**
+ *	@brief Create entry in the hello message list.
+ *
+ *	@param entry_location: Pointer to structure of type hello_msg_list_entry
+ *										 holding data to be stored.
+ *
+ *	@return : 0 on sucess, -ENOSR if memory allocation timeout
+ */
 
 int hello_msg_list_create_entry(struct hello_msg_list_entry **entry_location)
 {
@@ -1347,17 +1295,28 @@ int hello_msg_list_create_entry(struct hello_msg_list_entry **entry_location)
 	}
 	else
 	{
+
 		printk("Memory Allocation timeout \n");
-		return false; //TODO : fix return
+		return -ENOSR;
 	}
 
 	/* Start the lifetime timer */
-	k_timer_init (&(*entry_location)->lifetime, bt_mesh_delete_hello_msg_entry_timer, NULL);
+	k_timer_init (&(*entry_location)->lifetime, hello_msg_list_delete_entry_timer, NULL);
 	k_timer_start(&(*entry_location)->lifetime, HELLO_MSG_LIFETIME, 0);
-  return true;//TODO :  fix return
+	return 0;
 }
 
 
+/**
+*	@brief Search in the hello message list by source.
+*
+*	@param source_address
+*	@param entry_data: Pointer to structure of type hello_msg_list_entry
+*
+*	@return
+*			- Explicit: True when found, False otherwise.
+*			- Implicit: Pointer to the found entry (2nd param).
+*/
 
 bool hello_msg_list_search_entry(u16_t src, struct hello_msg_list_entry **entry_data)
 {
@@ -1369,13 +1328,21 @@ bool hello_msg_list_search_entry(u16_t src, struct hello_msg_list_entry **entry_
 		{
 			k_sem_give(&hello_msg_list_sem);
 			*entry_data = entry1;
-			return true;//TODO: fix return
+			return true;
 		}
 
 	}
 	k_sem_give(&hello_msg_list_sem);
-	return false;	//TODO: fix return
+	return false;
 }
+
+/**
+ *	@brief Called by trans_heartbeat in the transport layer when a heartbeat is received.
+ *
+ *	@param src: heartbeat source address
+ *							
+ *	@return  N/A
+ */
 
 
 void bt_mesh_trans_hello_msg_recv(u16_t src)
@@ -1389,17 +1356,11 @@ void bt_mesh_trans_hello_msg_recv(u16_t src)
   	if (hello_msg_list_search_entry(src, &entry))
   	{
 
-//	k_timer_init (&(*entry_location)->lifetime, bt_mesh_delete_hello_msg_entry_timer, NULL);
-//	k_timer_start(&(*entry_location)->lifetime, HELLO_MSG_LIFETIME, 0);
-
   		printk("entry foun src is %04x \n",entry->source_address);
 		k_timer_stop(&entry->lifetime);
 		struct k_timer temp_timer;
 		entry->lifetime = temp_timer;
-		k_timer_init(&entry->lifetime,bt_mesh_delete_hello_msg_entry_timer, NULL);
-    	BT_DBG("COOL.");
-    	printk("COOL.");
-
+		k_timer_init(&entry->lifetime,hello_msg_list_delete_entry_timer, NULL);
 		k_timer_start(&entry->lifetime, HELLO_MSG_LIFETIME, 0);
 		view_hello_msg_list();
   	}
@@ -1409,8 +1370,16 @@ void bt_mesh_trans_hello_msg_recv(u16_t src)
   	}
 
 }
+/**
+ *	@brief it adds new neighbour to the hello message list if it wasn't added before.
+ *	@param neighbour: neighbour source address
+ *	@param net_idx: neighbour network index
+ *							
+ *	@return  N/A
+ */
 
-void add_neighbour(u16_t neighbour, u16_t net_idx)
+
+static void add_neighbour(u16_t neighbour, u16_t net_idx)
 {
 	printk("add_neighbour \n");
 	/*search for this neighbour in the hello msg list, if not exist , create a new entry*/
@@ -1432,6 +1401,16 @@ void add_neighbour(u16_t neighbour, u16_t net_idx)
 
 }
 
+
+/**
+ *	@brief it removes the neighbour from the hello message list if it wasn't used by any other route.
+ *	@param neighbour: neighbour source address
+ *	@param net_idx: neighbour network index
+ *							
+ *	@return  N/A
+ */
+
+
 void remove_neighbour(u16_t neighbour, u16_t net_idx)
 {
 	/*check if there's no other route entry needs this neighbout. If not, remove the entry from the hello_msg list*/
@@ -1449,12 +1428,18 @@ void remove_neighbour(u16_t neighbour, u16_t net_idx)
 	  	if (hello_msg_list_search_entry(neighbour, &hello_msg_entry))
 		{
 			printk("src to be deleted is %04x \n",neighbour);
-			bt_mesh_delete_hello_msg_entry(hello_msg_entry);
+			hello_msg_list_delete_entry(hello_msg_entry);
 			view_hello_msg_list();			
 		}
 
 	}
 }
+
+/**
+ *	@brief Displays the entries of the hello message list
+ *				 
+ *	@return : N/A
+ */
 
 void view_hello_msg_list()
 {
@@ -1464,10 +1449,9 @@ void view_hello_msg_list()
 	}
 	struct hello_msg_list_entry *entry = NULL;
 	k_sem_take(&hello_msg_list_sem, K_FOREVER);
-	SYS_SLIST_FOR_EACH_CONTAINER(&hello_msg_list, entry, node){
-	printk("\x1b[32m Hello msg List:source address=%04x\x1b[0m \n", entry->source_address);
-	//printk("Valid List:hop count=%01x \n", entry->hop_count);
-
+	SYS_SLIST_FOR_EACH_CONTAINER(&hello_msg_list, entry, node)
+	{
+		printk("\x1b[32m Hello msg List:source address=%04x\x1b[0m \n", entry->source_address);
 	}
 	k_sem_give(&hello_msg_list_sem);
 }

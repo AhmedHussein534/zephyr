@@ -109,7 +109,7 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 	
 		bt_mesh_trans_rrep_rwait_list_init();
 		bt_mesh_routing_table_init();
-
+		bt_mesh_trans_rerr_list_init();
 
 	}
 

@@ -140,7 +140,7 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 
 
 /*RERR FUNCTIONS*/
-bool bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
+int bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
 void bt_mesh_trans_rerr_list_init();
 //void search_callback(struct bt_mesh_route_entry *entry1);//FIXME
 //bool is_empty_rerr_list(); //FIXME

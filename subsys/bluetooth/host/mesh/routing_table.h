@@ -50,6 +50,11 @@ bool bt_mesh_search_valid_destination_with_range(u16_t source_address, u16_t des
 bool bt_mesh_search_valid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, struct bt_mesh_route_entry **entry);
 bool bt_mesh_search_invalid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, struct bt_mesh_route_entry **entry);
 bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, struct bt_mesh_route_entry **entry);
+bool bt_mesh_search_valid_next_hop_with_net_idx(u16_t next_hop_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
+void bt_mesh_search_valid_destination_nexthop_net_idx_with_cb(u16_t destination_address, u16_t next_hop, u16_t net_idx,
+	 								 void (*search_callback)(struct bt_mesh_route_entry *,struct bt_mesh_route_entry **));
+bool bt_mesh_search_valid_destination_with_net_idx(u16_t source_address, u16_t destination_address,u16_t net_idx, struct bt_mesh_route_entry **entry);
+void bt_mesh_search_valid_nexthop_net_idx_with_cb(u16_t nexthop, u16_t net_idx, void (*cb)(struct bt_mesh_route_entry *,struct bt_mesh_route_entry **));
 
 /* Delete Entry Functions */
 void bt_mesh_delete_entry_valid(struct k_timer *timer_id);
@@ -64,5 +69,5 @@ bool bt_mesh_validate_route(struct bt_mesh_route_entry *entry);
 bool bt_mesh_invalidate_route(struct bt_mesh_route_entry *entry);
 
 /* Test Functions */
-/* void view_valid_list();
-void view_invalid_list(); */
+ void view_valid_list();
+void view_invalid_list(); 

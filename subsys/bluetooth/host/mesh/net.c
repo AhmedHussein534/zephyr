@@ -1227,7 +1227,7 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 			bt_mesh_adv_send(buf, NULL, NULL);
 		}
 		else{
-			printk("Destination Not Found = Not Relaying\n");
+			printk("\nDestination Not Found = Not Relaying\n");
 		}
 	}
 

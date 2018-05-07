@@ -92,10 +92,11 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 		bt_mesh_friend_init();
 	}
 
-	
+
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING)) {
+		u16_t GROUP_ADDR=0xeeee;
 		struct bt_mesh_cfg_hb_pub pub = {
-		.dst = BT_MESH_ADDR_ALL_NODES,
+		.dst = GROUP_ADDR,
 		.count = 0xff,
 		.period = 0x05,
 		.ttl = 0x07,
@@ -105,17 +106,10 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 
 		bt_mesh_cfg_hb_pub_set(net_idx, addr, &pub, NULL);
 		printk("Publishing heartbeat messages\n");
-	
-		struct bt_mesh_cfg_hb_sub sub = {
-		.src = BT_MESH_ADDR_ALL_NODES,
-		.dst = BT_MESH_ADDR_ALL_NODES,
-		.period = 0x10,
-		};
 
-		bt_mesh_cfg_hb_sub_set(net_idx, addr, &sub, NULL);
-		printk("Subscribing to heartbeat messages\n");
 		bt_mesh_trans_rrep_rwait_list_init();
 		bt_mesh_routing_table_init();
+		bt_mesh_trans_rerr_list_init();
 
 
 	}

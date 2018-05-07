@@ -58,7 +58,7 @@
 #include <board.h>
 
 #define CID_INTEL 0x0002 /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR 0x0baf /*Unicast Address*/
+#define NODE_ADDR 0x0bbf /*Unicast Address*/
 #define GROUP_ADDR 0xc000 /*The Address to use for pub and sub*/
 
 /*
@@ -648,7 +648,7 @@ static const struct bt_mesh_prov prov = {
 
 	 /* Add Publication, Sw1 (ELEM 1) is Publishing to GROUP_ADDR */
 	 struct bt_mesh_cfg_mod_pub pub = {
-		 .addr=0x0E0E, /*change this to the intendded unicast/multicast*/
+		 .addr=0x0baf, /*change this to the intendded unicast/multicast*/
 		 .app_idx=app_idx,
 		 .ttl=0x07,
 	   .transmit=BT_MESH_TRANSMIT(3, 20),

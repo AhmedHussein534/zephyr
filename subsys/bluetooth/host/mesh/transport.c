@@ -1556,8 +1556,6 @@ void bt_mesh_trans_init(void)
 				       (i * CONFIG_BT_MESH_RX_SDU_MAX));
 		seg_rx[i].buf.data = seg_rx[i].buf.__buf;
 	}
-	bt_mesh_routing_table_init();
-	bt_mesh_trans_rrep_rwait_list_init(); /* Initialize the rrep_list */
 }
 
 void bt_mesh_rpl_clear(void)

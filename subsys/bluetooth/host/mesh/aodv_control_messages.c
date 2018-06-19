@@ -161,7 +161,7 @@ static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
 	 *	then it's an intermediate node that has received a flooded RREQ
 	 *	and will proceed to send a directed RREQ to destination.
 	 */
-	if (data->I && bt_mesh_search_valid_destination_without_source(data->destination_address, &entry))
+	if (data->I && bt_mesh_search_valid_destination_without_source(data->destination_address,net_idx, &entry))
 	{
 		network_next_hop = entry->next_hop;
 	}
@@ -322,13 +322,13 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	{
 		/* Drop any received RREQ after the expiry of the ring search timer */
 		//TODO: compare sequence number before dropping packets
-		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, &entry)) {
+		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry)) {
 			BT_ERR("RREQ dropped - RREQ received after RREP Interval");
 			return -ENORREQ;
 		}
 		//TODO: check for existing routes?
 		/* Multiple RREQs are received in the interval of ring search timer */
-		else if (bt_mesh_search_invalid_destination(data->destination_address, data->source_address, &entry))
+		else if (bt_mesh_search_invalid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry))
 		{
 			/* If it contains better data, replace */
 			if ((data->hop_count*10+(data->rssi*10)/RSSI_MIN) < (entry->hop_count*10+(entry->rssi*10)/RSSI_MIN)) {
@@ -368,7 +368,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	 *   - reply to RREQ originator with RWAIT
 	 *   - send a directed RREQ to RREQ's destination
 	*/
-	else if (bt_mesh_search_valid_destination_without_source(data->destination_address, &entry)
+	else if (bt_mesh_search_valid_destination_without_source(data->destination_address, rx->ctx.net_idx, &entry)
 						&& data->D == false && data->I == false)
 		{
 		printk("Intermediate Node received a flooded RREQ and has route to destination \n");
@@ -413,7 +413,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		struct bt_mesh_route_entry *entry;
 
 		/* If the reverse route wasn't created, create it */
-		if (!bt_mesh_search_invalid_destination(data->destination_address, data->source_address, &entry))
+		if (!bt_mesh_search_invalid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry))
 		{
 			struct bt_mesh_route_entry *entry_data;
 			if(bt_mesh_create_entry_invalid(&entry_data))
@@ -486,7 +486,7 @@ int bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 	u8_t TTL = 2; /* Initial TTL */
 	printk("current TTL=%d \n", TTL);
 	struct bt_mesh_route_entry *entry;
-	if (bt_mesh_search_invalid_destination(source_address, destination_address, &entry))
+	if (bt_mesh_search_invalid_destination(source_address, destination_address,tx->ctx->net_idx, &entry))
 	{
 		destination_sequence_number = entry->destination_sequence_number;
 		printk("destination sequence number %08x \n",destination_sequence_number);
@@ -707,7 +707,7 @@ int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	if (data->source_address == bt_mesh_primary_addr())
 	{
 		struct bt_mesh_route_entry *found_entry = NULL;
-		if (!bt_mesh_search_valid_destination(data->source_address, data->destination_address, &found_entry) ||
+		if (!bt_mesh_search_valid_destination(data->source_address, data->destination_address,rx->ctx.net_idx, &found_entry) ||
 				(INRANGE(data->destination_sequence_number,found_entry->destination_sequence_number)
 				&& bt_mesh_invalidate_route(found_entry)))
 			{
@@ -744,7 +744,7 @@ int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	{
 		struct bt_mesh_route_entry *existing_entry;
 		/* Get the entry of reverse route created by RREQ */
-		if (bt_mesh_search_invalid_destination_with_range(data->destination_address,data->source_address,data->destination_number_of_elements, &existing_entry))
+		if (bt_mesh_search_invalid_destination_with_range(data->destination_address,data->source_address,data->destination_number_of_elements, rx->ctx.net_idx, &existing_entry))
 		{
 			/* Modify the RREQ's destination number of elements */
 			existing_entry->source_number_of_elements=data->destination_number_of_elements;
@@ -937,7 +937,7 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
  		 *  then it hasn't been verified yet which means it's still
 		 *  in the ring search function
 		*/
-		if (!bt_mesh_search_valid_destination(rx->ctx.addr, rx->dst, &temp))
+		if (!bt_mesh_search_valid_destination(rx->ctx.addr, rx->dst,rx->ctx.net_idx, &temp))
 		{
 			/* Insert a new node in the rrep_rwait_list */
 			struct rrep_rwait_list_entry temp_entry;
@@ -950,7 +950,7 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 	/* RWAIT is received by an intermediate node */
 	else {
 		/* XXX: Comment this section */
-		if (!bt_mesh_search_invalid_destination(rx->ctx.addr, rx->dst, &temp))
+		if (!bt_mesh_search_invalid_destination(rx->ctx.addr, rx->dst,rx->ctx.net_idx, &temp))
 		{
 			/* FIXME: remove the struct */
 			struct rwait_data send_data = {

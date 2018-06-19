@@ -455,7 +455,7 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 		if(!bt_mesh_elem_find(tx->ctx->addr) )
 		{
 			struct bt_mesh_route_entry *entry=NULL;
-			if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,&entry)){
+			if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,tx->ctx->net_idx,&entry)){
 				printk("Destination Found\n");
 			}
 			else

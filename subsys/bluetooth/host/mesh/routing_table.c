@@ -124,13 +124,14 @@ void bt_mesh_routing_table_init()
 *
 *	@param source_address
 *	@param destination_address
+*	@param network index
 *	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
-*			- Implicit: Pointer to the found entry (3rd param).
+*			- Implicit: Pointer to the found entry (4th param).
 */
-bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_address, struct bt_mesh_route_entry **entry)
+bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_address,u16_t net_idx, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -140,7 +141,8 @@ bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_ad
 		if ((destination_address >= entry1->destination_address) &&
 		    (destination_address < (entry1->destination_address + entry1->destination_number_of_elements)) &&
 		    (source_address >= entry1->source_address) &&
-		    (source_address < (entry1->source_address + entry1->source_number_of_elements))) {
+		    (source_address < (entry1->source_address + entry1->source_number_of_elements)) &&
+		    (net_idx == entry1->net_idx)) {
 			k_sem_give(&valid_list_sem);
 			*entry = entry1;
 			return true;
@@ -155,20 +157,22 @@ bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_ad
 *	@brief Search in the valid list by destination only.
 *
 *	@param destination_address
+*	@param network index
 *	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
 *			- Implicit: Pointer to the found entry (3rd param).
 */
-bool bt_mesh_search_valid_destination_without_source(u16_t destination_address, struct bt_mesh_route_entry **entry)
+bool bt_mesh_search_valid_destination_without_source(u16_t destination_address, u16_t net_idx, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 	k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node){
 		/* Search for the destination in range of its elements */
 		if ((destination_address >= entry1->destination_address) &&
-		    (destination_address < entry1->destination_address + entry1->destination_number_of_elements)) {
+		    (destination_address < entry1->destination_address + entry1->destination_number_of_elements)&&
+		    (net_idx==entry1->net_idx)) {
 			k_sem_give(&valid_list_sem);
 			*entry = entry1;
 			return true;
@@ -183,20 +187,22 @@ bool bt_mesh_search_valid_destination_without_source(u16_t destination_address, 
 *	@brief Search in the valid list by source only.
 *
 *	@param source_address
+*	@param network index
 *	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
 *			- Implicit: Pointer to the found entry (3rd param).
 */
-bool bt_mesh_search_valid_source_without_destination(u16_t source_address, struct bt_mesh_route_entry **entry)
+bool bt_mesh_search_valid_source_without_destination(u16_t source_address, u16_t net_idx, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 	k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node){
 		/* Search for the destination in range of its elements */
 		if ((source_address >= entry1->source_address) &&
-		    (source_address < entry1->source_address + entry1->source_number_of_elements)) {
+		    (source_address < entry1->source_address + entry1->source_number_of_elements) &&
+		    (net_idx==entry1->net_idx)) {
 			k_sem_give(&valid_list_sem);
 			*entry = entry1;
 			return true;
@@ -212,13 +218,14 @@ bool bt_mesh_search_valid_source_without_destination(u16_t source_address, struc
 *
 *	@param source_address
 *	@param destination_address
+*	@param network index
 *	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
-*			- Implicit: Pointer to the found entry (3rd param).
+*			- Implicit: Pointer to the found entry (4th param).
 */
-bool bt_mesh_search_invalid_destination(u16_t source_address, u16_t destination_address, struct bt_mesh_route_entry **entry)
+bool bt_mesh_search_invalid_destination(u16_t source_address, u16_t destination_address, u16_t net_idx, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -226,7 +233,8 @@ bool bt_mesh_search_invalid_destination(u16_t source_address, u16_t destination_
 	SYS_SLIST_FOR_EACH_CONTAINER(&invalid_list, entry1, node){
 		/* Search for the destination and source in range of their elements */
 		if ((destination_address >= entry1->destination_address && destination_address < entry1->destination_address + entry1->destination_number_of_elements)
-		    && (source_address >= entry1->source_address && source_address < entry1->source_address + entry1->source_number_of_elements)) {
+		    && (source_address >= entry1->source_address && source_address < entry1->source_address + entry1->source_number_of_elements) &&
+		    (net_idx==entry1->net_idx)) {
 			k_sem_give(&invalid_list_sem);
 			*entry = entry1;
 			return true;
@@ -241,13 +249,14 @@ bool bt_mesh_search_invalid_destination(u16_t source_address, u16_t destination_
 *	@brief Search in the valid list by destination only.
 *
 *	@param destination_address
+*	@param network index
 *	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
-*			- Implicit: Pointer to the found entry (3rd param).
+*			- Implicit: Pointer to the found entry (4th param).
 */
-bool bt_mesh_search_invalid_destination_without_source(u16_t destination_address, struct bt_mesh_route_entry **entry)
+bool bt_mesh_search_invalid_destination_without_source(u16_t destination_address,u16_t net_idx, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -255,7 +264,8 @@ bool bt_mesh_search_invalid_destination_without_source(u16_t destination_address
 	SYS_SLIST_FOR_EACH_CONTAINER(&invalid_list, entry1, node){
 		/* Search for the destination in range of its elements */
 		if ((destination_address >= entry1->destination_address) &&
-		    (destination_address < entry1->destination_address + entry1->destination_number_of_elements)) {
+		    (destination_address < entry1->destination_address + entry1->destination_number_of_elements) &&
+		    (net_idx==entry1->net_idx)) {
 			k_sem_give(&invalid_list_sem);
 			*entry = entry1;
 			return true;
@@ -270,13 +280,14 @@ bool bt_mesh_search_invalid_destination_without_source(u16_t destination_address
 *	@brief Search in the invalid list by source only.
 *
 *	@param source_address
+*	@param network index
 *	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
 *			- Implicit: Pointer to the found entry (3rd param).
 */
-bool bt_mesh_search_invalid_source_without_destination(u16_t source_address, struct bt_mesh_route_entry **entry)
+bool bt_mesh_search_invalid_source_without_destination(u16_t source_address, u16_t net_idx, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -284,7 +295,8 @@ bool bt_mesh_search_invalid_source_without_destination(u16_t source_address, str
 	SYS_SLIST_FOR_EACH_CONTAINER(&invalid_list, entry1, node){
 		/* Search for the source in range of its elements */
 		if ((source_address >= entry1->source_address) &&
-		    (source_address < entry1->source_address + entry1->source_number_of_elements)) {
+		    (source_address < entry1->source_address + entry1->source_number_of_elements) &&
+		    (net_idx==entry1->net_idx)) {
 			k_sem_give(&invalid_list_sem);
 			*entry = entry1;
 			return true;
@@ -301,13 +313,14 @@ bool bt_mesh_search_invalid_source_without_destination(u16_t source_address, str
 *	@param source_address
 *	@param destination_address
 *	@param destination_number_of_elements
+*	@param network index
 *	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
-*			- Implicit: Pointer to the found entry (3rd param).
+*			- Implicit: Pointer to the found entry (5th param).
 */
-bool bt_mesh_search_valid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, struct bt_mesh_route_entry **entry)
+bool bt_mesh_search_valid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, u16_t net_idx,struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -315,7 +328,8 @@ bool bt_mesh_search_valid_destination_with_range(u16_t source_address, u16_t des
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node){
 		if ((entry1->destination_address >= destination_address) &&
 		    (entry1->destination_address < (destination_address + destination_number_of_elements)) &&
-		    (source_address == entry1->source_address)) {
+		    (source_address == entry1->source_address) &&
+		    (net_idx==entry1->net_idx)) {
 			k_sem_give(&valid_list_sem);
 			*entry = entry1;
 			return true;
@@ -332,13 +346,14 @@ bool bt_mesh_search_valid_destination_with_range(u16_t source_address, u16_t des
 *	@param source_address
 *	@param destination_address
 *	@param destination_number_of_elements
+*	@param network index
 *	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
-*			- Implicit: Pointer to the found entry (3rd param).
+*			- Implicit: Pointer to the found entry (5th param).
 */
-bool bt_mesh_search_valid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, struct bt_mesh_route_entry **entry)
+bool bt_mesh_search_valid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, u16_t net_idx, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -346,7 +361,8 @@ bool bt_mesh_search_valid_source_with_range(u16_t source_address, u16_t destinat
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node){
 		if ((entry1->source_address >= source_address) &&
 		    (entry1->source_address < (source_address + source_number_of_elements)) &&
-		    (destination_address == entry1->destination_address)) {
+		    (destination_address == entry1->destination_address) &&
+		    (net_idx==entry1->net_idx)) {
 			k_sem_give(&valid_list_sem);
 			*entry = entry1;
 			return true;
@@ -363,13 +379,14 @@ bool bt_mesh_search_valid_source_with_range(u16_t source_address, u16_t destinat
 *	@param source_address
 *	@param destination_address
 *	@param destination_number_of_elements
+*	@param network index
 *	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
-*			- Implicit: Pointer to the found entry (3rd param).
+*			- Implicit: Pointer to the found entry (5th param).
 */
-bool bt_mesh_search_invalid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, struct bt_mesh_route_entry **entry)
+bool bt_mesh_search_invalid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, u16_t net_idx, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -377,7 +394,8 @@ bool bt_mesh_search_invalid_destination_with_range(u16_t source_address, u16_t d
 	SYS_SLIST_FOR_EACH_CONTAINER(&invalid_list, entry1, node){
 		if ((entry1->destination_address >= destination_address) &&
 		    (entry1->destination_address < (destination_address + destination_number_of_elements)) &&
-		    (source_address == entry1->source_address)) {
+		    (source_address == entry1->source_address) &&
+		    (net_idx==entry1->net_idx)) {
 			k_sem_give(&invalid_list_sem);
 			*entry = entry1;
 			return true;
@@ -393,13 +411,14 @@ bool bt_mesh_search_invalid_destination_with_range(u16_t source_address, u16_t d
 *	@param source_address
 *	@param destination_address
 *	@param destination_number_of_elements
+*	@param network index
 *	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
-*			- Implicit: Pointer to the found entry (3rd param).
+*			- Implicit: Pointer to the found entry (5th param).
 */
-bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, struct bt_mesh_route_entry **entry)
+bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, u16_t net_idx, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
 
@@ -407,7 +426,8 @@ bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destin
 	SYS_SLIST_FOR_EACH_CONTAINER(&invalid_list, entry1, node){
 		if ((entry1->source_address >= source_address) &&
 		    (entry1->source_address < (source_address + source_number_of_elements)) &&
-		    (destination_address == entry1->destination_address)) {
+		    (destination_address == entry1->destination_address) &&
+		    (net_idx==entry1->net_idx)) {
 			k_sem_give(&invalid_list_sem);
 			*entry = entry1;
 			return true;

@@ -20,14 +20,14 @@ struct bt_mesh_route_entry {
 	u16_t destination_address;              /* Source address (2B)*/
 	u32_t destination_sequence_number;      /* Destination Sequence number (4B)*/
 	u16_t next_hop;                         /* Next hop address (2B)*/
-	u16_t source_number_of_elements;				/* Source number of elements (2B) */
-	u16_t destination_number_of_elements;		/* Destination number of elements (2B) */
-	u8_t hop_count;                 				/* Number of hops (1B) */
-	s8_t rssi;															/* Average RSSI (1B) */
-	bool repairable;												/* Repairable Flag (1B) */
-	u16_t net_idx;													/* Network Index (2B) */
-	struct k_timer lifetime;        				/* Lifetime timer (52B) */
-	sys_snode_t node;               				/* Linkedlist node (4B) */
+	u16_t source_number_of_elements;		/* Source number of elements (2B) */
+	u16_t destination_number_of_elements;	/* Destination number of elements (2B) */
+	u8_t hop_count;                 		/* Number of hops (1B) */
+	s8_t rssi;								/* Average RSSI (1B) */
+	bool repairable;						/* Repairable Flag (1B) */
+	u16_t net_idx;							/* Network Index (2B) */
+	struct k_timer lifetime;        		/* Lifetime timer (52B) */
+	sys_snode_t node;               		/* Linkedlist node (4B) */
 };
 
 /* FUNCTIONS PROTOTYPES */
@@ -40,16 +40,16 @@ bool bt_mesh_create_entry_invalid(struct bt_mesh_route_entry **entry_data);
 bool bt_mesh_create_entry_invalid_with_cb(struct bt_mesh_route_entry **entry_data, void (*timer_cb)(struct k_timer *timer_id));
 
 /* Search Entry Functions */
-bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_address, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_valid_destination_without_source(u16_t destination_address, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_valid_source_without_destination(u16_t source_address, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_invalid_destination(u16_t source_address, u16_t destination_address, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_invalid_destination_without_source(u16_t destination_address, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_invalid_source_without_destination(u16_t source_address, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_valid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_valid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_invalid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, struct bt_mesh_route_entry **entry);
+bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
+bool bt_mesh_search_valid_destination_without_source(u16_t destination_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
+bool bt_mesh_search_valid_source_without_destination(u16_t source_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
+bool bt_mesh_search_invalid_destination(u16_t source_address, u16_t destination_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
+bool bt_mesh_search_invalid_destination_without_source(u16_t destination_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
+bool bt_mesh_search_invalid_source_without_destination(u16_t source_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
+bool bt_mesh_search_valid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, u16_t net_idx, struct bt_mesh_route_entry **entry);
+bool bt_mesh_search_valid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, u16_t net_idx, struct bt_mesh_route_entry **entry);
+bool bt_mesh_search_invalid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, u16_t net_idx, struct bt_mesh_route_entry **entry);
+bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, u16_t net_idx, struct bt_mesh_route_entry **entry);
 bool bt_mesh_search_valid_next_hop_with_net_idx(u16_t next_hop_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
 void bt_mesh_search_valid_destination_nexthop_net_idx_with_cb(u16_t destination_address, u16_t next_hop, u16_t net_idx,
 	 								 void (*search_callback)(struct bt_mesh_route_entry *,struct bt_mesh_route_entry **));

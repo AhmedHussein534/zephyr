@@ -1222,7 +1222,7 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 	if (relay_to_adv(rx->net_if)) {
 		if (IS_ENABLED(CONFIG_BT_MESH_ROUTING)){
 			struct bt_mesh_route_entry *entry;
-			if(bt_mesh_search_valid_destination(rx->ctx.addr,rx->dst,&entry)){
+			if(bt_mesh_search_valid_destination(rx->ctx.addr,rx->dst, rx->ctx.net_idx, &entry)){
 				bt_mesh_refresh_lifetime_valid(entry);
 				bt_mesh_adv_send(buf, NULL, NULL);
 			}

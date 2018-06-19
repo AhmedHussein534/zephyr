@@ -537,6 +537,21 @@ void bt_mesh_search_valid_nexthop_net_idx_with_cb(u16_t nexthop, u16_t net_idx, 
 /* Delete Entry Functions */
 
 /**
+ *	@brief Delete vaild entry when destination node is unreachable.
+ *
+ *	@param deleted_entry: Pointer to struct of type bt_mesh_route_entry holding the entry needs to be deleted.
+ */
+void bt_mesh_delete_entry_link_drop(struct bt_mesh_route_entry *deleted_entry)
+{
+	k_timer_stop(&deleted_entry->lifetime);
+	k_sem_take(&valid_list_sem, K_FOREVER);   							/* take semaphore */
+	sys_slist_find_and_remove(&valid_list, &deleted_entry->node);   /*delete node from linked list */
+	k_sem_give(&valid_list_sem);                            /*return semaphore */
+	k_mem_slab_free(&routing_table_slab, (void **)&deleted_entry);  /*free space in slab*/
+	printk("valid Entry Deleted \n");
+}
+
+/**
  *	@brief Delete vaild entry when lifetime expires.
  *
  *	@param timer_id: Pointer to struct of type k_timer holding lifetime of an entry.

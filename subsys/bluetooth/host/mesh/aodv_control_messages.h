@@ -119,7 +119,7 @@ struct rreq_data {
 	u8_t destination_number;				/*RERR number of unreachable destinations included in the PDU (1B)*/
 	u16_t next_hop;							/*RERR destination (2B)*/
 	u16_t net_idx;							/*RERR destination network index (2B)*/
-	sys_slist_t destination_list; /*RERR destination list pointer */
+	sys_slist_t destination_list; 			/*RERR destination list pointer */
 	sys_snode_t node;       				/* Linkedlist node (4B) */
 };
 

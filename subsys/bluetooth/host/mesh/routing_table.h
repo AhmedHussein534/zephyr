@@ -57,6 +57,7 @@ bool bt_mesh_search_valid_destination_with_net_idx(u16_t source_address, u16_t d
 void bt_mesh_search_valid_nexthop_net_idx_with_cb(u16_t nexthop, u16_t net_idx, void (*cb)(struct bt_mesh_route_entry *,struct bt_mesh_route_entry **));
 
 /* Delete Entry Functions */
+void bt_mesh_delete_entry_link_drop(struct bt_mesh_route_entry *deleted_entry);
 void bt_mesh_delete_entry_valid(struct k_timer *timer_id);
 void bt_mesh_delete_entry_invalid(struct k_timer *timer_id);
 

@@ -321,12 +321,10 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	else if (bt_mesh_elem_find(data->destination_address))
 	{
 		/* Drop any received RREQ after the expiry of the ring search timer */
-		//TODO: compare sequence number before dropping packets
 		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, &entry)) {
 			BT_ERR("RREQ dropped - RREQ received after RREP Interval");
 			return -ENORREQ;
 		}
-		//TODO: check for existing routes?
 		/* Multiple RREQs are received in the interval of ring search timer */
 		else if (bt_mesh_search_invalid_destination(data->destination_address, data->source_address, &entry))
 		{
@@ -336,7 +334,6 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 				entry->destination_sequence_number = data->destination_sequence_number;
 				entry->hop_count                   = data->hop_count;
 				entry->next_hop                    = data->next_hop;
-				entry->rssi                    		 = data->rssi;
 			}
 			return 0;
 		}
@@ -981,15 +978,6 @@ void bt_mesh_trans_rerr_list_init()
 	sys_slist_init(&rerr_list);
 }
 
-/**
- *	@brief Create entry in the destination list.
- *
- *	@param entry_location: Pointer to pointer to structure of type destination_list_entry
- *										 holding data to be stored.
- *	@param destination_list: Pointer to sys_slist_t to which this entry should be appended
- *
- *	@return : 0 on sucess, -ENOSR if memory allocation timeout
- */
 static int destination_list_create_entry(struct destination_list_entry **entry_location,sys_slist_t *destination_list)
 {
 	/* Insert a new node into destination list */
@@ -1005,16 +993,6 @@ static int destination_list_create_entry(struct destination_list_entry **entry_l
 	}
 	return 0;
 }
-
-/**
- *	@brief Delete the destination list associated with the rerr entry.
- *
- *	@param entry_location: Pointer to structure of type destination_list_entry
- *										 holding data to be deleted.
- *	@param destination_list: Pointer to sys_slist_t from which this entry should be found and removed
- *
- *	@return : N/A
- */
 
 static void destination_list_delete_entry(struct destination_list_entry *entry, sys_slist_t *destination_list )
 {
@@ -1152,6 +1130,16 @@ static int rerr_send(struct rerr_list_entry *data)
 		BT_DBG("destination_address =%04x , destination_sequence_number = %04x  ", (iterator_destination_entry->destination_address), (iterator_destination_entry->destination_sequence_number));
 	}
 	
+	/***/
+	/*
+	for (int i=0; i<data->destination_number && i< 10 ;i++) //FIXME
+	{
+		net_buf_simple_add_mem(&buf, &data->destination_address[i], 2);
+		net_buf_simple_add_mem(&buf, &data->destination_sequence_number[i], 3);
+		BT_DBG("destination_address =%04x , destination_sequence_number = %04x  ", data->destination_address[i], data->destination_sequence_number[i]);
+	}
+	*/
+
 	return bt_mesh_ctl_send(&tx, TRANS_CTL_OP_RERR, buf.data,
 				buf.len, NULL, NULL, NULL);
 }
@@ -1210,8 +1198,8 @@ int bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 }
 
 /**
- *	@brief A callback function called each time an entry that matches is found.
- *			 It forms the RERR packets that will be send
+ *	@brief A callback function called each time an entry that matches is found. It creates the rerr ir
+ *
  *
  *	@param entry_found: Pointer to a structure of type bt_mesh_route_entry that holds
  *						 the received network layer data.
@@ -1227,9 +1215,8 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
 	/*Current node is a terminal node in the found path*/
 	if ( entry_found->source_address==bt_mesh_primary_addr())
 	{
-		//bt_mesh_invalidate_route(entry_found);
+		bt_mesh_invalidate_route(entry_found);
 		remove_neighbour(entry_found->next_hop, entry_found->net_idx);
-		bt_mesh_delete_entry_link_drop(entry_found);
 	}
 	else /*Current node is an intermediate node in the found path*/
 	{
@@ -1241,7 +1228,10 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
 		{
 			/*Add another dst, but check first if it wasn't added before*/
     		bool flag=true;
-    		/*loop over this entry destination list*/
+    		/*loop over the list*/
+
+
+
     		struct destination_list_entry *iterator_destination_entry = NULL;
 			SYS_SLIST_FOR_EACH_CONTAINER(&rerr_entry->destination_list, iterator_destination_entry, node)
 			{
@@ -1251,6 +1241,17 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
 				}
 			}
 
+
+
+    		/**/
+/*
+      		for (int i=0; i<rerr_entry->destination_number;i++)
+            {
+            	if (rerr_entry->destination_address[i]==entry_found->destination_address)
+                    flag=false;
+            }*/
+
+
         	if(flag)
 			{
         		struct destination_list_entry *destination_entry=NULL;
@@ -1258,6 +1259,11 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
 				destination_entry->destination_address=entry_found->destination_address;
 				destination_entry->destination_sequence_number=entry_found->destination_sequence_number;
 				rerr_entry->destination_number++ ;
+				/*				
+        		rerr_entry->destination_address[rerr_entry->destination_number]=entry_found->destination_address;
+				rerr_entry->destination_sequence_number[rerr_entry->destination_number]=entry_found->destination_sequence_number;
+				rerr_entry->destination_number++ ;
+				*/
       		}
 		}
 		else /*create RERR entry */
@@ -1273,24 +1279,17 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
 			destination_entry->destination_sequence_number=entry_found->destination_sequence_number;
 		}
 
+		bt_mesh_invalidate_route(entry_found);
 		
 		sys_snode_t * temp_node=sys_slist_peek_next(&((*temp)->node));
 		if(entry==(*temp) && (*temp) !=NULL && temp_node!= NULL)
 			(*temp)=CONTAINER_OF(temp_node,struct bt_mesh_route_entry,node);
 
 		remove_neighbour(entry_found->next_hop, entry_found->net_idx);
-		bt_mesh_delete_entry_link_drop(entry_found);
+		bt_mesh_invalidate_route(entry);
 		remove_neighbour(entry->next_hop, entry->net_idx);
-		bt_mesh_delete_entry_link_drop(entry);
-
 	}
 }
-
-/**
- *	@brief Displays the entries of the destination list
- *
- *	@return : N/A
- */
 
 static void view_destination_list(sys_slist_t *destination_list)
 {

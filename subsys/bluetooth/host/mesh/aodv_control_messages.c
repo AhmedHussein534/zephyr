@@ -321,10 +321,12 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	else if (bt_mesh_elem_find(data->destination_address))
 	{
 		/* Drop any received RREQ after the expiry of the ring search timer */
+		//TODO: compare sequence number before dropping packets
 		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, &entry)) {
 			BT_ERR("RREQ dropped - RREQ received after RREP Interval");
 			return -ENORREQ;
 		}
+		//TODO: check for existing routes?
 		/* Multiple RREQs are received in the interval of ring search timer */
 		else if (bt_mesh_search_invalid_destination(data->destination_address, data->source_address, &entry))
 		{
@@ -334,6 +336,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 				entry->destination_sequence_number = data->destination_sequence_number;
 				entry->hop_count                   = data->hop_count;
 				entry->next_hop                    = data->next_hop;
+				entry->rssi                    		 = data->rssi;
 			}
 			return 0;
 		}

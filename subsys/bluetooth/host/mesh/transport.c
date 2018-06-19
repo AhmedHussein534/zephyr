@@ -33,7 +33,6 @@
 #include "foundation.h"
 #include "transport.h"
 
-// Surround with configuration parameter
 #include "aodv_control_messages.h"
 #include "routing_table.h"
 
@@ -451,29 +450,29 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	const u8_t *key;
 	u8_t *ad;
 	int err;
-	if(!bt_mesh_elem_find(tx->ctx->addr) )
+	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
-		struct bt_mesh_route_entry *entry=NULL;
-		if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,&entry))
+		if(!bt_mesh_elem_find(tx->ctx->addr) )
 		{
-			printk("Destination Found\n");
-		}
-		else
-		{
-			printk("Initiating Ring Search\n");
-			err=bt_mesh_trans_ring_search(tx);
-			if(!err)
-			{
-				return 0;
+			struct bt_mesh_route_entry *entry=NULL;
+			if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,&entry)){
+				printk("Destination Found\n");
 			}
 			else
 			{
-				BT_ERR("Destination not found\n");
-				return err;
+				printk("Initiating Ring Search\n");
+				err=bt_mesh_trans_ring_search(tx);
+				if(!err){
+					return 0;
+				}
+				else
+				{
+					BT_ERR("Destination not found\n");
+					return err;
+				}
 			}
 		}
 	}
-
 	if (net_buf_simple_tailroom(msg) < 4) {
 		BT_ERR("Insufficient tailroom for Transport MIC");
 		return -EINVAL;
@@ -808,7 +807,10 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 			   (hops == 1) ? "" : "s", feat);
 
 	bt_mesh_heartbeat(rx->ctx.addr, rx->dst, hops, feat);
-	bt_mesh_trans_hello_msg_recv(rx->ctx.addr);
+	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
+	{
+		bt_mesh_trans_hello_msg_recv(rx->ctx.addr);
+	}
 
 	return 0;
 }

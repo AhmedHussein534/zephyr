@@ -35,7 +35,7 @@ void bt_mesh_routing_table_init()
 /**
  *	@brief Create entry in the valid list.
  *
- *	@param entry_data: Pointer to structure of type bt_mesh_route_entry
+ *	@param entry_data: Pointer to pointer to structure of type bt_mesh_route_entry
  *										 holding data to be stored.
  *
  *	@return True when allocation succeeds, False when no space is available.
@@ -63,7 +63,7 @@ void bt_mesh_routing_table_init()
 /**
  *	@brief Create entry in the invalid list.
  *
- *	@param entry_data: Pointer to structure of type bt_mesh_route_entry
+ *	@param entry_data: Pointer to pointer to structure of type bt_mesh_route_entry
  *										 holding data to be stored.
  *
  *	@return True when allocation succeeds, False when no space is available.
@@ -90,7 +90,7 @@ void bt_mesh_routing_table_init()
 /**
  *	@brief Create entry in the invalid list.
  *
- *	@param entry_data: Pointer to structure of type bt_mesh_route_entry
+ *	@param entry_data: Pointer to pointer to structure of type bt_mesh_route_entry
  *										 holding data to be stored.
  *	@param timer_id: Pointer to structure of type k_timer holding lifetime.
  *
@@ -124,7 +124,7 @@ void bt_mesh_routing_table_init()
 *
 *	@param source_address
 *	@param destination_address
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -155,7 +155,7 @@ bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_ad
 *	@brief Search in the valid list by destination only.
 *
 *	@param destination_address
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -183,7 +183,7 @@ bool bt_mesh_search_valid_destination_without_source(u16_t destination_address, 
 *	@brief Search in the valid list by source only.
 *
 *	@param source_address
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -212,7 +212,7 @@ bool bt_mesh_search_valid_source_without_destination(u16_t source_address, struc
 *
 *	@param source_address
 *	@param destination_address
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -241,7 +241,7 @@ bool bt_mesh_search_invalid_destination(u16_t source_address, u16_t destination_
 *	@brief Search in the valid list by destination only.
 *
 *	@param destination_address
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -270,7 +270,7 @@ bool bt_mesh_search_invalid_destination_without_source(u16_t destination_address
 *	@brief Search in the invalid list by source only.
 *
 *	@param source_address
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -301,7 +301,7 @@ bool bt_mesh_search_invalid_source_without_destination(u16_t source_address, str
 *	@param source_address
 *	@param destination_address
 *	@param destination_number_of_elements
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -332,7 +332,7 @@ bool bt_mesh_search_valid_destination_with_range(u16_t source_address, u16_t des
 *	@param source_address
 *	@param destination_address
 *	@param destination_number_of_elements
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -363,7 +363,7 @@ bool bt_mesh_search_valid_source_with_range(u16_t source_address, u16_t destinat
 *	@param source_address
 *	@param destination_address
 *	@param destination_number_of_elements
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -393,7 +393,7 @@ bool bt_mesh_search_invalid_destination_with_range(u16_t source_address, u16_t d
 *	@param source_address
 *	@param destination_address
 *	@param destination_number_of_elements
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -430,14 +430,15 @@ bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destin
 void bt_mesh_search_valid_destination_nexthop_net_idx_with_cb(u16_t destination_address, u16_t next_hop, u16_t net_idx,
 	 void (*search_callback)(struct bt_mesh_route_entry *,struct bt_mesh_route_entry **))
 {
-	struct bt_mesh_route_entry *entry1,*temp;
+	/*temp is a pointer for the loop to run safely */
+	struct bt_mesh_route_entry *iterator_entry,*temp;
 	k_sem_take(&valid_list_sem, K_FOREVER);
-	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(&valid_list, entry1,temp, node)
+	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(&valid_list, iterator_entry,temp, node)
 	{
-		if ((destination_address == entry1->destination_address) && (next_hop==entry1->next_hop) && (net_idx==entry1->net_idx))
+		if ((destination_address == iterator_entry->destination_address) && (next_hop==iterator_entry->next_hop) && (net_idx==iterator_entry->net_idx))
 		{
 			k_sem_give(&valid_list_sem);
-			search_callback(entry1,&temp);
+			search_callback(iterator_entry,&temp);
 			k_sem_take(&valid_list_sem, K_FOREVER);
 		}
 	}
@@ -450,7 +451,7 @@ void bt_mesh_search_valid_destination_nexthop_net_idx_with_cb(u16_t destination_
 *	@param source_address
 *	@param destination_address
 *	@param net_idx : network index
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -479,7 +480,7 @@ bool bt_mesh_search_valid_destination_with_net_idx(u16_t source_address, u16_t d
 *
 *	@param next_hop_address
 *	@param net_idx : network index
-*	@param entry: Pointer to structure of type bt_mesh_route_entry
+*	@param entry: Pointer to pointer to structure of type bt_mesh_route_entry
 *
 *	@return
 *			- Explicit: True when found, False otherwise.
@@ -515,15 +516,16 @@ bool bt_mesh_search_valid_next_hop_with_net_idx(u16_t next_hop_address, u16_t ne
 
 void bt_mesh_search_valid_nexthop_net_idx_with_cb(u16_t nexthop, u16_t net_idx, void (*search_callback)(struct bt_mesh_route_entry *,struct bt_mesh_route_entry **))
 {
-	struct bt_mesh_route_entry *entry1,*temp;
+	/*temp is a pointer to run the loop safely*/
+	struct bt_mesh_route_entry *iterator_entry,*temp;
 	k_sem_take(&valid_list_sem, K_FOREVER);
 	/*loop over the routing table with the given destination and */
-	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(&valid_list, entry1, temp ,node)
+	SYS_SLIST_FOR_EACH_CONTAINER_SAFE(&valid_list, iterator_entry, temp ,node)
 	{	/* Search for the destination and source addresses in their range of elements */
-		if ((nexthop == entry1->next_hop) && (net_idx==entry1->net_idx))
+		if ((nexthop == iterator_entry->next_hop) && (net_idx==iterator_entry->net_idx))
 		{
 			k_sem_give(&valid_list_sem);
-			search_callback(entry1,&temp);
+			search_callback(iterator_entry,&temp);
 			k_sem_take(&valid_list_sem, K_FOREVER);
 		}
 	}

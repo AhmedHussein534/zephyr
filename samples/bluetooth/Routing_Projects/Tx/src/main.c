@@ -46,19 +46,21 @@
 #include <bluetooth/l2cap.h>
 #include <bluetooth/hci.h>
 #include <bluetooth/mesh.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/crypto.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/adv.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/mesh.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/net.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/transport.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/access.h>
-#include </home/ahmed/zephyr/subsys/bluetooth/host/mesh/foundation.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/crypto.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/adv.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/mesh.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/net.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/transport.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/access.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/foundation.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/aodv_control_messages.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/routing_table.h>
 #include <stdio.h>
 
 #include <board.h>
 
 #define CID_INTEL 0x0002 /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR 0x0bbf /*Unicast Address*/
+#define NODE_ADDR 0x0bbb /*Unicast Address*/
 #define GROUP_ADDR 0xc000 /*The Address to use for pub and sub*/
 
 /*
@@ -659,6 +661,71 @@ static const struct bt_mesh_prov prov = {
  }
 
 
+void set_tables()
+{
+	struct bt_mesh_route_entry  temp_entry;
+	struct bt_mesh_route_entry  *entry=&temp_entry;
+	bt_mesh_create_entry_valid(&entry);
+	entry->source_address =  0x0aaa;
+	entry->destination_address=0x0ddd;
+	entry->destination_sequence_number=0;
+	entry->next_hop=0x0ccc;
+	entry->source_number_of_elements=4;
+	entry->destination_number_of_elements=4;
+	entry->hop_count=3;
+	entry->net_idx=net_idx;
+	struct bt_mesh_route_entry  temp_entry2;
+	struct bt_mesh_route_entry  *entry2=&temp_entry2;
+	bt_mesh_create_entry_valid(&entry2);
+	entry2->source_address =  0x0ddd;
+	entry2->destination_address=0x0aaa;
+	entry2->destination_sequence_number=0;
+	entry2->next_hop=0x0aaa;
+	entry2->source_number_of_elements=4;
+	entry2->destination_number_of_elements=4;
+	entry2->hop_count=3;
+	entry2->net_idx=net_idx;
+
+	struct bt_mesh_route_entry  temp_entry21;
+	struct bt_mesh_route_entry  *entry21=&temp_entry21;
+	bt_mesh_create_entry_valid(&entry21);
+	entry21->source_address =  0x0aaa;
+	entry21->destination_address=0x0fff;
+	entry21->destination_sequence_number=0;
+	entry21->next_hop=0x0ccc;
+	entry21->source_number_of_elements=4;
+	entry21->destination_number_of_elements=4;
+	entry21->hop_count=3;
+	entry21->net_idx=net_idx;
+
+	struct bt_mesh_route_entry  temp_entry22;
+	struct bt_mesh_route_entry  *entry22=&temp_entry22;
+	bt_mesh_create_entry_valid(&entry22);
+	entry22->source_address =  0x0fff;
+	entry22->destination_address=0x0aaa;
+	entry22->destination_sequence_number=0;
+	entry22->next_hop=0x0aaa;
+	entry22->source_number_of_elements=4;
+	entry22->destination_number_of_elements=4;
+	entry22->hop_count=3;
+	entry22->net_idx=net_idx;
+	view_valid_list();
+
+	struct hello_msg_list_entry  temp_entry_hello;
+	struct hello_msg_list_entry  *entry_hello=&temp_entry_hello;
+	hello_msg_list_create_entry(&entry_hello);
+	entry_hello->source_address=0x0ccc;
+	entry_hello->net_idx=net_idx;
+/*
+	struct hello_msg_list_entry  temp_entry_hello2;
+	struct hello_msg_list_entry  *entry_hello2=&temp_entry_hello2;
+	hello_msg_list_create_entry(&entry_hello2);
+	entry_hello2->source_address=0x0009;
+	entry_hello2->net_idx=net_idx;
+*/
+	view_hello_msg_list();
+}
+
 static void bt_ready(int err)
 {
 	struct bt_le_oob oob;
@@ -693,6 +760,7 @@ if (bt_le_oob_get_local(&oob)) {
 	}
 
 	printk("Provisioning completed\n");
+	set_tables();
 	configure();
 }
 

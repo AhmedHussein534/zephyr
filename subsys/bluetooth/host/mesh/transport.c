@@ -451,23 +451,27 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	const u8_t *key;
 	u8_t *ad;
 	int err;
-	if(!bt_mesh_elem_find(tx->ctx->addr) ){
-		struct bt_mesh_route_entry *entry=NULL;
-		if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,&entry)){
-			printk("Destination Found\n");
-	}
-	else{
-	printk("Initiating Ring Search\n");
-	err=bt_mesh_trans_ring_search(tx);
-	if(!err){
-		return 0;
-	}
-	else
+	if(!bt_mesh_elem_find(tx->ctx->addr) )
 	{
-		BT_ERR("Destination not found\n");
-		return err;
-	}
-	}
+		struct bt_mesh_route_entry *entry=NULL;
+		if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,&entry))
+		{
+			printk("Destination Found\n");
+		}
+		else
+		{
+			printk("Initiating Ring Search\n");
+			err=bt_mesh_trans_ring_search(tx);
+			if(!err)
+			{
+				return 0;
+			}
+			else
+			{
+				BT_ERR("Destination not found\n");
+				return err;
+			}
+		}
 	}
 
 	if (net_buf_simple_tailroom(msg) < 4) {
@@ -777,6 +781,7 @@ static int trans_ack(struct bt_mesh_net_rx *rx, u8_t hdr,
 static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 			   struct net_buf_simple *buf)
 {
+	printk("\n\n\n\n\n  <<<<<<<<<<<< trans_heartbeat >>>>>>>>>>>>>> \n\n");	
 	u8_t init_ttl, hops;
 	u16_t feat;
 
@@ -811,6 +816,7 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 		    struct net_buf_simple *buf, u64_t *seq_auth)
 {
+	printk("\n\n\n\n\n  <<<<<<<<<<<< ctl_recv >>>>>>>>>>>>>> \n\n");
 	u8_t ctl_op = TRANS_CTL_OP(&hdr);
 
 	BT_DBG("OpCode 0x%02x len %u", ctl_op, buf->len);

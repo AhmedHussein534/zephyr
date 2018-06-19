@@ -49,11 +49,6 @@
 /* Hello Message DEFINITIONS */
 #define HELLO_MSG_LIFETIME  K_SECONDS(20)
 
-/*_Test_*/
-//#define HELLO_MSG_SEND  K_SECONDS(5)
-/* _Test_*/
-
-
 
 /* DATA */
 
@@ -106,6 +101,16 @@ struct rreq_data {
 	sys_snode_t node;       					 /* Linkedlist node (4B) */
 };
 
+/** @brief destination data for unreachable destinations data.
+ */
+
+ struct destination_list_entry {
+ 	u16_t destination_address;      	/* RERR unreachable destination address (2B) */
+ 	u32_t destination_sequence_number; 	/* RERR unreachable destination sequence number (3B) */
+	sys_snode_t node;       				/* Linkedlist node (4B) */
+};
+
+
 /** @brief RERR data for transmission or reception. Contains the transport layer
  *				 RERR PDU and the network layer credentials.
  */
@@ -114,8 +119,7 @@ struct rreq_data {
 	u8_t destination_number;				/*RERR number of unreachable destinations included in the PDU (1B)*/
 	u16_t next_hop;							/*RERR destination (2B)*/
 	u16_t net_idx;							/*RERR destination network index (2B)*/
- 	u16_t destination_address[10];      	/* RERR unreachable destination address (2B) */
- 	u32_t destination_sequence_number[10]; 	/* RERR unreachable destination sequence number (3B) */
+	sys_slist_t destination_list; /*RERR destination list pointer */
 	sys_snode_t node;       				/* Linkedlist node (4B) */
 };
 

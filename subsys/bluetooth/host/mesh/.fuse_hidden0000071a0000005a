@@ -978,15 +978,6 @@ void bt_mesh_trans_rerr_list_init()
 	sys_slist_init(&rerr_list);
 }
 
-/**
- *	@brief Create entry in the destination list.
- *
- *	@param entry_location: Pointer to pointer to structure of type destination_list_entry
- *										 holding data to be stored.
- *	@param destination_list: Pointer to sys_slist_t to which this entry should be appended
- *
- *	@return : 0 on sucess, -ENOSR if memory allocation timeout
- */
 static int destination_list_create_entry(struct destination_list_entry **entry_location,sys_slist_t *destination_list)
 {
 	/* Insert a new node into destination list */
@@ -1002,16 +993,6 @@ static int destination_list_create_entry(struct destination_list_entry **entry_l
 	}
 	return 0;
 }
-
-/**
- *	@brief Delete the destination list associated with the rerr entry.
- *
- *	@param entry_location: Pointer to structure of type destination_list_entry
- *										 holding data to be deleted.
- *	@param destination_list: Pointer to sys_slist_t from which this entry should be found and removed
- *
- *	@return : N/A
- */
 
 static void destination_list_delete_entry(struct destination_list_entry *entry, sys_slist_t *destination_list )
 {

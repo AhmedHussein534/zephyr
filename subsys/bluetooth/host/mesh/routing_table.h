@@ -42,14 +42,8 @@ bool bt_mesh_create_entry_invalid_with_cb(struct bt_mesh_route_entry **entry_dat
 /* Search Entry Functions */
 bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
 bool bt_mesh_search_valid_destination_without_source(u16_t destination_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_valid_source_without_destination(u16_t source_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
 bool bt_mesh_search_invalid_destination(u16_t source_address, u16_t destination_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_invalid_destination_without_source(u16_t destination_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_invalid_source_without_destination(u16_t source_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_valid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, u16_t net_idx, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_valid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, u16_t net_idx, struct bt_mesh_route_entry **entry);
 bool bt_mesh_search_invalid_destination_with_range(u16_t source_address, u16_t destination_address, u16_t destination_number_of_elements, u16_t net_idx, struct bt_mesh_route_entry **entry);
-bool bt_mesh_search_invalid_source_with_range(u16_t source_address, u16_t destination_address, u16_t source_number_of_elements, u16_t net_idx, struct bt_mesh_route_entry **entry);
 bool bt_mesh_search_valid_next_hop_with_net_idx(u16_t next_hop_address, u16_t net_idx, struct bt_mesh_route_entry **entry);
 void bt_mesh_search_valid_destination_nexthop_net_idx_with_cb(u16_t destination_address, u16_t next_hop, u16_t net_idx,
 	 								 void (*search_callback)(struct bt_mesh_route_entry *,struct bt_mesh_route_entry **));

@@ -217,7 +217,7 @@ static void gen_onoff_set(struct bt_mesh_model *model,
 			  struct net_buf_simple *buf)
 {
 	gen_onoff_set_unack(model, ctx, buf);
-	gen_onoff_get(model, ctx, buf);
+	//gen_onoff_get(model, ctx, buf);
 }
 
 

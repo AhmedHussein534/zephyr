@@ -1126,6 +1126,7 @@ static bool relay_to_adv(enum bt_mesh_net_if net_if)
 static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 			      struct bt_mesh_net_rx *rx)
 {
+	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_net_relay >>>>>>>>>>>>>> \n\n");
 	const u8_t *enc, *priv;
 	struct net_buf *buf;
 	u8_t nid, transmit;
@@ -1140,8 +1141,11 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 		if (rx->ctx.recv_ttl == 1) {
 			return;
 		}
-	} else {
+	} 
+	else
+	{
 		if (rx->ctx.recv_ttl <= 1) {
+			printk("TTL < 1, Not relaying\n");
 			return;
 		}
 	}
@@ -1153,6 +1157,7 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 	}
 
 	BT_DBG("TTL %u CTL %u dst 0x%04x", rx->ctx.recv_ttl, rx->ctl, rx->dst);
+	printk("TTL %u CTL %u dst 0x%04x", rx->ctx.recv_ttl, rx->ctl, rx->dst);
 
 	/* The Relay Retransmit state is only applied to adv-adv relaying.
 	 * Anything else (like GATT to adv, or locally originated packets)
@@ -1220,15 +1225,37 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 	}
 
 	if (relay_to_adv(rx->net_if)) {
-		if (IS_ENABLED(CONFIG_BT_MESH_ROUTING)){
-			struct bt_mesh_route_entry *entry;
-			if(bt_mesh_search_valid_destination(rx->ctx.addr,rx->dst, rx->ctx.net_idx, &entry)){
-				bt_mesh_refresh_lifetime_valid(entry);
+		//To relay with routing configuration enabled; address needs to be unicast only
+		if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
+		{
+			if (BT_MESH_ADDR_IS_UNICAST(rx->dst))
+			{
+				struct bt_mesh_route_entry *entry;
+				if(bt_mesh_search_valid_destination(rx->ctx.addr,rx->dst, rx->ctx.net_idx, &entry))
+				{
+					bt_mesh_refresh_lifetime_valid(entry);
+					bt_mesh_adv_send(buf, NULL, NULL);
+				}
+				else
+				{
+					printk("\nDestination Not Found = Not Relaying\n");
+				}
+			}
+			else if (rx->dst == BT_MESH_KEY_ANY) // 0xffff
+			{
+				printk("\nBT_MESH_KEY_ANY = Not Relaying\n");
+			}
+			else
+			{
 				bt_mesh_adv_send(buf, NULL, NULL);
+				printk("relaying group or virtual address\n");
 			}
-			else{
-				printk("\nDestination Not Found = Not Relaying\n");
-			}
+
+		}
+		else
+		{
+			bt_mesh_adv_send(buf, NULL, NULL);
+			printk("relaying\n");
 		}
 	}
 
@@ -1333,9 +1360,14 @@ void bt_mesh_net_recv(struct net_buf_simple *data, s8_t rssi,
 	 * was neither a local element nor an LPN we're Friends for.
 	 */
 	if (!BT_MESH_ADDR_IS_UNICAST(rx.dst) ||
-	    (!rx.local_match && !rx.friend_match)) {
+	    (!rx.local_match && !rx.friend_match))
+	{
 		net_buf_simple_restore(&buf, &state);
 		bt_mesh_net_relay(&buf, &rx);
+	}
+	else
+	{
+		printk("unicast address == not relaying\n");
 	}
 }
 

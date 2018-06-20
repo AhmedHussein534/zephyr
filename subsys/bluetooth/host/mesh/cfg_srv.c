@@ -3166,15 +3166,16 @@ void bt_mesh_heartbeat(u16_t src, u16_t dst, u8_t hops, u16_t feat)
 {
 	struct bt_mesh_cfg_srv *cfg = conf;
 
-	if (!cfg) {
+	if (!cfg)
+	{
 		BT_WARN("No configuaration server context available");
 		return;
 	}
 
-	/*if (src != cfg->hb_sub.src || dst != cfg->hb_sub.dst) {
+	if (src != cfg->hb_sub.src || dst != cfg->hb_sub.dst) {
 		BT_WARN("No subscription for received heartbeat");
 		return;
-	}*/
+	}
 
 	if (k_uptime_get() > cfg->hb_sub.expiry) {
 		BT_WARN("Heartbeat subscription period expired");

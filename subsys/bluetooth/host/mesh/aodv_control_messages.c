@@ -287,17 +287,16 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	data->source_sequence_number = RREQ_GET_SRC_SEQ(buf);
 
 	/* TESTING: Test sent RREQ data is correct. */
-	
-		 printk("Source Address=%04x \n",RREQ_GET_SRC_ADDR(buf));
-		 printk("Destination Address=%04x \n",RREQ_GET_DST_ADDR(buf));
-		 printk("Source Number of Elements=%04x \n",RREQ_GET_SRC_NUMBER_OF_ELEMENTS(buf));
-		 printk("Hop Count=%d \n",RREQ_GET_HOP_COUNT(buf));
-		 printk("rssi=%d \n",RREQ_GET_RSSI(buf));
-		 printk("G Flag=%d \n",RREQ_GET_G_FLAG(buf));
-		 printk("D Flag=%d \n",RREQ_GET_D_FLAG(buf));
-		 printk("U Flag=%d \n",RREQ_GET_U_FLAG(buf));
-		 printk("I Flag=%d \n",RREQ_GET_I_FLAG(buf));
-		 printk("Destination Sequence Number=%08x \n",RREQ_GET_DST_SEQ(buf));
+	printk("Source Address=%04x \n",RREQ_GET_SRC_ADDR(buf));
+	printk("Destination Address=%04x \n",RREQ_GET_DST_ADDR(buf));
+	printk("Source Number of Elements=%04x \n",RREQ_GET_SRC_NUMBER_OF_ELEMENTS(buf));
+	printk("Hop Count=%d \n",RREQ_GET_HOP_COUNT(buf));
+	printk("rssi=%d \n",RREQ_GET_RSSI(buf));
+	printk("G Flag=%d \n",RREQ_GET_G_FLAG(buf));
+	printk("D Flag=%d \n",RREQ_GET_D_FLAG(buf));
+	printk("U Flag=%d \n",RREQ_GET_U_FLAG(buf));
+	printk("I Flag=%d \n",RREQ_GET_I_FLAG(buf));
+	printk("Destination Sequence Number=%08x \n",RREQ_GET_DST_SEQ(buf));
 		
 
 	BT_DBG("source_address 0x%04x destination_address 0x%04x next_hop 0x%04x",
@@ -306,8 +305,6 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		data->source_number_of_elements, data->hop_count, data->source_sequence_number)
 	BT_DBG("destination_sequence_number  %08x ", data->destination_sequence_number)
 	printk("RSSI average = %d\n",data->rssi);
-
-
 
 	struct bt_mesh_route_entry *entry = NULL;
 	/* If element is requesting data transaction from an element in the same node,
@@ -427,17 +424,14 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 				entry_data->hop_count                      = data->hop_count;
 				entry_data->rssi 													 = data-> rssi;
 				entry_data->net_idx 											 = rx -> ctx.net_idx;
-				}
-				else
-				{
-					return -ENOSR;
-				}
+			}
+			else
+			{
+				return -ENOSR;
+			}
 			data->next_hop = data->next_hop + 1;
 			/* Relay the received RREQ */
 			return rreq_send(data, rx->ctx.recv_ttl - 1, rx->ctx.net_idx);
-
-
-
 		}
 		/* If an invalid entry was found and the stored destination sequence
 		 * 	is fresher than the received one, refresh the route entry timer
@@ -469,7 +463,7 @@ int bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 {
 	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_trans_ring_search >>>>>>>>>>>>>> \n\n");
 	u16_t source_address = tx->src; /* Primary element source address */
-	u16_t destination_address = tx->ctx->addr; /* TODO: BT_MESH_ADDR_ALL_NODES ? */
+	u16_t destination_address = tx->ctx->addr; 
 	/* The following 2 fields will be set if
 	 * an invalid route is found to destination */
 	u32_t destination_sequence_number = 0;
@@ -590,7 +584,7 @@ static int rrep_send(struct rrep_data *data,u16_t net_idx, u16_t destination_add
 	{
 		.app_idx  = BT_MESH_KEY_UNUSED,
 		.net_idx  = net_idx,
-		.send_ttl = 3 /* FIXME */
+		.send_ttl = 0
 	};
 
 	struct bt_mesh_net_tx tx = {
@@ -600,7 +594,6 @@ static int rrep_send(struct rrep_data *data,u16_t net_idx, u16_t destination_add
 	};
 	tx.ctx->addr = destination_address;
 	tx.src = bt_mesh_primary_addr();
-	tx.ctx->send_ttl--;
 
 	/* TESTING: View RREP data
 	printk("RREP R 0x%01x \n", RREP_msg->R);
@@ -692,7 +685,7 @@ int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	printk("RREP elem 0x%02x \n", data->destination_number_of_elements);
 	printk("Network Src 0x%02x \n", rx->ctx.addr);
 	printk("Network dst 0x%02x \n", rx->dst);
-	printk("Network recieved TL 0x%02x \n", rx->ctx.send_ttl);
+	printk("Network recieved TTL 0x%02x \n", rx->ctx.send_ttl);
 	printk("msg->src 0x%04x \n", data->source_address);
 	printk("bt_mesh_primary_addr() 0x%04x \n", bt_mesh_primary_addr());
 
@@ -835,7 +828,7 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
 		ctx.net_idx  = rreq_net_idx;
 		ctx.app_idx  = BT_MESH_KEY_UNUSED;
 		ctx.addr     = destination_entry->next_hop;  /* Next hop fetched from the routing table */
-		ctx.send_ttl = 3; /* FIXME */
+		ctx.send_ttl = 0; 
 		tx.ctx  = &ctx;
 	}
 	else
@@ -1122,7 +1115,7 @@ static int rerr_send(struct rerr_list_entry *data)
 	{
 		.app_idx  = BT_MESH_KEY_UNUSED,
 		.net_idx  = data->net_idx,
-		.send_ttl = 3  /* FIXME */
+		.send_ttl = 0 
 	};
 
 	struct bt_mesh_net_tx tx = {
@@ -1132,7 +1125,6 @@ static int rerr_send(struct rerr_list_entry *data)
 	};
 	tx.ctx->addr = data->next_hop;
 	tx.src = bt_mesh_primary_addr();
-	tx.ctx->send_ttl--;
 
 	BT_DBG("RERR Send: \n");
 	BT_DBG("destination_number =%01x : ", data->destination_number);

@@ -452,27 +452,32 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	int err;
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
-		if(!bt_mesh_elem_find(tx->ctx->addr) )
+		if((!bt_mesh_elem_find(tx->ctx->addr)) && (BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) )
 		{
+			printk("address is unicast and not local_match \n");
 			struct bt_mesh_route_entry *entry=NULL;
+			void view_valid_list();
 			if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,tx->ctx->net_idx,&entry)){
+				bt_mesh_refresh_lifetime_valid(entry);
 				printk("Destination Found\n");
 			}
 			else
 			{
 				printk("Initiating Ring Search\n");
 				err=bt_mesh_trans_ring_search(tx);
-				if(!err){
-					return 0;
-				}
-				else
+				if(err)
 				{
 					BT_ERR("Destination not found\n");
 					return err;
 				}
 			}
 		}
+		else
+		{
+				printk("Group address == No Routing\n");
+		}
 	}
+
 	if (net_buf_simple_tailroom(msg) < 4) {
 		BT_ERR("Insufficient tailroom for Transport MIC");
 		return -EINVAL;
@@ -789,10 +794,14 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 		return -EINVAL;
 	}
 
-/*	if (rx->dst != hb_sub_dst) {
-		BT_WARN("Ignoring heartbeat to non-subscribed destination");
-		return 0;
-*/	//}
+	if (!IS_ENABLED(CONFIG_BT_MESH_ROUTING))
+	{
+		if (rx->dst != hb_sub_dst) 
+		{
+			BT_WARN("Ignoring heartbeat to non-subscribed destination");
+			return 0;
+		}
+	}
 
 	init_ttl = (net_buf_simple_pull_u8(buf) & 0x7f);
 	feat = net_buf_simple_pull_be16(buf);
@@ -806,11 +815,11 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 	       rx->ctx.addr, rx->ctx.recv_ttl, init_ttl, hops,
 			   (hops == 1) ? "" : "s", feat);
 
-	bt_mesh_heartbeat(rx->ctx.addr, rx->dst, hops, feat);
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
 		bt_mesh_trans_hello_msg_recv(rx->ctx.addr);
 	}
+	bt_mesh_heartbeat(rx->ctx.addr, rx->dst, hops, feat);
 
 	return 0;
 }
@@ -956,7 +965,17 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 		     size_t data_len, u64_t *seq_auth,
 		     const struct bt_mesh_send_cb *cb, void *cb_data)
 {
+	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_ctl_send >>>>>>>>>>>>>> \n\n");
 	struct net_buf *buf;
+	
+	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
+	{
+		if(ctl_op==0x0a)
+		{
+			tx->ctx->send_ttl=0;
+			printk("sending heartbeat\n");
+		}
+	}
 
 	BT_DBG("src 0x%04x dst 0x%04x ttl 0x%02x ctl 0x%02x", tx->src,
 	       tx->ctx->addr, tx->ctx->send_ttl, ctl_op);
@@ -964,36 +983,37 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 			   tx->ctx->addr, tx->ctx->send_ttl, ctl_op);
 	BT_DBG("len %zu: %s", data_len, bt_hex(data, data_len));
 
+
 	if (data_len <= 11)
 	{
-	buf = bt_mesh_adv_create(BT_MESH_ADV_DATA,
-				 BT_MESH_TRANSMIT_COUNT(tx->xmit),
-				 BT_MESH_TRANSMIT_INT(tx->xmit), BUF_TIMEOUT);
-	if (!buf) {
-		BT_ERR("Out of transport buffers");
-		return -ENOBUFS;
+		buf = bt_mesh_adv_create(BT_MESH_ADV_DATA,
+					 BT_MESH_TRANSMIT_COUNT(tx->xmit),
+					 BT_MESH_TRANSMIT_INT(tx->xmit), BUF_TIMEOUT);
+		if (!buf)
+		{
+			BT_ERR("Out of transport buffers");
+			return -ENOBUFS;
 		}
 
-	net_buf_reserve(buf, BT_MESH_NET_HDR_LEN);
-
-	net_buf_add_u8(buf, TRANS_CTL_HDR(ctl_op, 0));
-
-	net_buf_add_mem(buf, data, data_len);
-
-	if (IS_ENABLED(CONFIG_BT_MESH_FRIEND)) {
-		if (bt_mesh_friend_enqueue_tx(tx, BT_MESH_FRIEND_PDU_SINGLE,
-					      seq_auth, &buf->b) &&
-		    BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
-			/* PDUs for a specific Friend should only go
-			 * out through the Friend Queue.
-			 */
-			net_buf_unref(buf);
-			return 0;
+		net_buf_reserve(buf, BT_MESH_NET_HDR_LEN);
+		net_buf_add_u8(buf, TRANS_CTL_HDR(ctl_op, 0));
+		net_buf_add_mem(buf, data, data_len);
+		if (IS_ENABLED(CONFIG_BT_MESH_FRIEND))
+		{
+			if (bt_mesh_friend_enqueue_tx(tx, BT_MESH_FRIEND_PDU_SINGLE,
+						      seq_auth, &buf->b) &&
+			    BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr))
+			{
+				/* PDUs for a specific Friend should only go
+				 * out through the Friend Queue.
+				 */
+				net_buf_unref(buf);
+				return 0;
+			}
 		}
+		return bt_mesh_net_send(tx, buf, cb, cb_data);
 	}
-	return bt_mesh_net_send(tx, buf, cb, cb_data);
-}
- else
+ 	else
 	{
 		u8_t seg_o;
 		u16_t seq_zero;
@@ -1004,7 +1024,6 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 		for (tx_seg = NULL, i = 0; i < ARRAY_SIZE(seg_tx); i++) {
 			if (!seg_tx[i].nack_count)
 			{
-
 				tx_seg = &seg_tx[i];
 				break;
 			}
@@ -1038,11 +1057,12 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 						 BT_MESH_TRANSMIT_COUNT(tx->xmit),
 						 BT_MESH_TRANSMIT_INT(tx->xmit),
 						 BUF_TIMEOUT);
-			 if (!seg) {
-					BT_ERR("Out of segment buffers");
-					seg_tx_reset(tx_seg);
-					return -ENOBUFS;
-				}
+			if (!seg)
+			{
+				BT_ERR("Out of segment buffers");
+				seg_tx_reset(tx_seg);
+				return -ENOBUFS;
+			}
 			BT_MESH_ADV(seg)->seg.attempts = SEG_RETRANSMIT_ATTEMPTS;
 			net_buf_reserve(seg, BT_MESH_NET_HDR_LEN);
 			net_buf_add_u8(seg, TRANS_CTL_HDR(ctl_op,1));
@@ -1056,18 +1076,20 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 			tx_seg->seg[seg_o] = net_buf_ref(seg);
 			BT_DBG("Sending %u/%u", seg_o, tx_seg->seg_n);
 			err = bt_mesh_net_send(tx, seg,seg_o ? &seg_sent_cb : &first_sent_cb,tx_seg);
-			 if (err) {
-					BT_ERR("Sending segment failed");
-					seg_tx_reset(tx_seg);
-					return err;
-				}
-			}
-			if (!BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) {
-				//remove ack wait
+			if (err)
+			{
+				BT_ERR("Sending segment failed");
 				seg_tx_reset(tx_seg);
+				return err;
 			}
-			return 0;
 		}
+		if (!BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) 
+		{
+			//remove ack wait
+			seg_tx_reset(tx_seg);
+		}
+		return 0;
+	}
 }
 
 static int send_ack(struct bt_mesh_subnet *sub, u16_t src, u16_t dst,
@@ -1442,6 +1464,12 @@ found_rx:
 
 int bt_mesh_trans_recv(struct net_buf_simple *buf, struct bt_mesh_net_rx *rx)
 {
+	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
+	{
+		/*refresh the heartbeat timer in case data packet is recieved from a neighbour of interest*/
+		bt_mesh_trans_hello_msg_recv(rx->ctx.addr);		
+	}
+
 	u64_t seq_auth = TRANS_SEQ_AUTH_NVAL;
 	enum bt_mesh_friend_pdu_type pdu_type = BT_MESH_FRIEND_PDU_SINGLE;
 	struct net_buf_simple_state state;

@@ -650,7 +650,7 @@ static const struct bt_mesh_prov prov = {
 
 	 /* Add Publication, Sw1 (ELEM 1) is Publishing to GROUP_ADDR */
 	 struct bt_mesh_cfg_mod_pub pub = {
-		 .addr=0xc000, /*change this to the intendded unicast/multicast*/
+		 .addr=0x0ccc, /*change this to the intendded unicast/multicast*/
 		 .app_idx=app_idx,
 		 .ttl=0x07,
 	   .transmit=BT_MESH_TRANSMIT(3, 20),

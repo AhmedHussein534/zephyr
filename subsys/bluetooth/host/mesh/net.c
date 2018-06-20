@@ -1359,6 +1359,8 @@ void bt_mesh_net_recv(struct net_buf_simple *data, s8_t rssi,
 	/* Relay if this was a group/virtual address, or if the destination
 	 * was neither a local element nor an LPN we're Friends for.
 	 */
+	printk("bt_mesh_fixed_group_match(rx.dst) %u bt_mesh_elem_find(rx.dst) %u dst 0x%04x \n", bt_mesh_fixed_group_match(rx.dst), bt_mesh_elem_find(rx.dst), rx.dst);
+	printk("rx.local_match %u rx.friend_match %u dst 0x%04x \n", rx.local_match, rx.friend_match, rx.dst);
 	if (!BT_MESH_ADDR_IS_UNICAST(rx.dst) ||
 	    (!rx.local_match && !rx.friend_match))
 	{
@@ -1367,7 +1369,7 @@ void bt_mesh_net_recv(struct net_buf_simple *data, s8_t rssi,
 	}
 	else
 	{
-		printk("unicast address == not relaying\n");
+		printk("local_match is found == not relaying\n");
 	}
 }
 

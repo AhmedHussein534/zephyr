@@ -434,7 +434,17 @@ void bt_mesh_refresh_lifetime_valid(struct bt_mesh_route_entry *entry)
 	entry->lifetime = temp;
 	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_valid, NULL);
 	k_timer_start(&entry->lifetime, LIFETIME, 0);
-	printk("Lifetime of valid entry refreshed\n");
+	struct bt_mesh_route_entry* reverse_entry;
+	if (bt_mesh_search_valid_destination(entry->destination_address,entry->source_address,entry->net_idx,&reverse_entry))
+	{
+		reverse_entry->lifetime = temp;
+		k_timer_init(&reverse_entry->lifetime, bt_mesh_delete_entry_valid, NULL);
+		k_timer_start(&reverse_entry->lifetime, LIFETIME, 0);
+		printk("Lifetime of valid entry refreshed bidrectional\n");
+	}
+	else {
+	printk("one directional entry updated\n");
+  }
 }
 
 /**

@@ -260,7 +260,6 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 		.app_idx=app_idx,
 		.ttl = 0x07,
 		.period =0b01000110,   //500 ms
-		.transmit=BT_MESH_TRANSMIT(1, 20),
 		};
 		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
 		break;

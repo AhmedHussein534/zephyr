@@ -454,7 +454,6 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	{
 		if((!bt_mesh_elem_find(tx->ctx->addr)) && (BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) )
 		{
-			printk("address is unicast and not local_match \n");
 			struct bt_mesh_route_entry *entry=NULL;
 			void view_valid_list();
 			if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,tx->ctx->net_idx,&entry)){
@@ -785,7 +784,6 @@ static int trans_ack(struct bt_mesh_net_rx *rx, u8_t hdr,
 static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 			   struct net_buf_simple *buf)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< trans_heartbeat >>>>>>>>>>>>>> \n\n");	
 	u8_t init_ttl, hops;
 	u16_t feat;
 
@@ -796,7 +794,7 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 
 	if (!IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
-		if (rx->dst != hb_sub_dst) 
+		if (rx->dst != hb_sub_dst)
 		{
 			BT_WARN("Ignoring heartbeat to non-subscribed destination");
 			return 0;
@@ -807,13 +805,9 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 	feat = net_buf_simple_pull_be16(buf);
 
 	hops = (init_ttl - rx->ctx.recv_ttl + 1);
-	printk("HB received\n");
 	BT_DBG("src 0x%04x TTL %u InitTTL %u (%u hop%s) feat 0x%04x",
 	       rx->ctx.addr, rx->ctx.recv_ttl, init_ttl, hops,
 	       (hops == 1) ? "" : "s", feat);
-	printk("\n src 0x%04x TTL %u InitTTL %u (%u hop%s) feat 0x%04x \n",
-	       rx->ctx.addr, rx->ctx.recv_ttl, init_ttl, hops,
-			   (hops == 1) ? "" : "s", feat);
 
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
@@ -827,12 +821,9 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 		    struct net_buf_simple *buf, u64_t *seq_auth)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< ctl_recv >>>>>>>>>>>>>> \n\n");
 	u8_t ctl_op = TRANS_CTL_OP(&hdr);
 
 	BT_DBG("OpCode 0x%02x len %u", ctl_op, buf->len);
-	printk("OpCode 0x%02x len %u \n", ctl_op, buf->len);
-	printk("ctl_recv from 0x%04x \n",rx->ctx.addr);
 	switch (ctl_op) {
 	case TRANS_CTL_OP_ACK:
 		return trans_ack(rx, hdr, buf, seq_auth);
@@ -965,22 +956,18 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 		     size_t data_len, u64_t *seq_auth,
 		     const struct bt_mesh_send_cb *cb, void *cb_data)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_ctl_send >>>>>>>>>>>>>> \n\n");
 	struct net_buf *buf;
-	
+
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
 		if(ctl_op==0x0a)
 		{
 			tx->ctx->send_ttl=0;
-			printk("sending heartbeat\n");
 		}
 	}
 
 	BT_DBG("src 0x%04x dst 0x%04x ttl 0x%02x ctl 0x%02x", tx->src,
 	       tx->ctx->addr, tx->ctx->send_ttl, ctl_op);
-	printk("src 0x%04x dst 0x%04x ttl 0x%02x ctl 0x%02x \n", tx->src,
-			   tx->ctx->addr, tx->ctx->send_ttl, ctl_op);
 	BT_DBG("len %zu: %s", data_len, bt_hex(data, data_len));
 
 
@@ -1083,7 +1070,7 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 				return err;
 			}
 		}
-		if (!BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) 
+		if (!BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr))
 		{
 			//remove ack wait
 			seg_tx_reset(tx_seg);
@@ -1467,7 +1454,7 @@ int bt_mesh_trans_recv(struct net_buf_simple *buf, struct bt_mesh_net_rx *rx)
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
 		/*refresh the heartbeat timer in case data packet is recieved from a neighbour of interest*/
-		bt_mesh_trans_hello_msg_recv(rx->ctx.addr);		
+		bt_mesh_trans_hello_msg_recv(rx->ctx.addr);
 	}
 
 	u64_t seq_auth = TRANS_SEQ_AUTH_NVAL;
@@ -1484,8 +1471,6 @@ int bt_mesh_trans_recv(struct net_buf_simple *buf, struct bt_mesh_net_rx *rx)
 
 	BT_DBG("src 0x%04x dst 0x%04x seq 0x%08x friend_match %u",
 	       rx->ctx.addr, rx->dst, rx->seq, rx->friend_match);
-	printk("\n src 0x%04x dst 0x%04x seq 0x%08x friend_match %u \n",
-			 	  rx->ctx.addr, rx->dst, rx->seq, rx->friend_match);
 
 	/* Remove network headers */
 	net_buf_simple_pull(buf, BT_MESH_NET_HDR_LEN);

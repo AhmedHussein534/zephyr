@@ -1241,7 +1241,7 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 					printk("\nDestination Not Found = Not Relaying\n");
 				}
 			}
-			else if (rx->dst == BT_MESH_KEY_ANY) // 0xffff
+			else if (rx->dst == BT_MESH_KEY_ANY && rx->ctl) // 0xffff
 			{
 				printk("\nBT_MESH_KEY_ANY = Not Relaying\n");
 			}

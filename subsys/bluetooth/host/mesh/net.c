@@ -1126,7 +1126,6 @@ static bool relay_to_adv(enum bt_mesh_net_if net_if)
 static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 			      struct bt_mesh_net_rx *rx)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_net_relay >>>>>>>>>>>>>> \n\n");
 	const u8_t *enc, *priv;
 	struct net_buf *buf;
 	u8_t nid, transmit;
@@ -1141,11 +1140,10 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 		if (rx->ctx.recv_ttl == 1) {
 			return;
 		}
-	} 
+	}
 	else
 	{
 		if (rx->ctx.recv_ttl <= 1) {
-			printk("TTL < 1, Not relaying\n");
 			return;
 		}
 	}
@@ -1157,7 +1155,6 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 	}
 
 	BT_DBG("TTL %u CTL %u dst 0x%04x", rx->ctx.recv_ttl, rx->ctl, rx->dst);
-	printk("TTL %u CTL %u dst 0x%04x", rx->ctx.recv_ttl, rx->ctl, rx->dst);
 
 	/* The Relay Retransmit state is only applied to adv-adv relaying.
 	 * Anything else (like GATT to adv, or locally originated packets)
@@ -1359,17 +1356,11 @@ void bt_mesh_net_recv(struct net_buf_simple *data, s8_t rssi,
 	/* Relay if this was a group/virtual address, or if the destination
 	 * was neither a local element nor an LPN we're Friends for.
 	 */
-	printk("bt_mesh_fixed_group_match(rx.dst) %u bt_mesh_elem_find(rx.dst) %u dst 0x%04x \n", bt_mesh_fixed_group_match(rx.dst), bt_mesh_elem_find(rx.dst), rx.dst);
-	printk("rx.local_match %u rx.friend_match %u dst 0x%04x \n", rx.local_match, rx.friend_match, rx.dst);
 	if (!BT_MESH_ADDR_IS_UNICAST(rx.dst) ||
 	    (!rx.local_match && !rx.friend_match))
 	{
 		net_buf_simple_restore(&buf, &state);
 		bt_mesh_net_relay(&buf, &rx);
-	}
-	else
-	{
-		printk("local_match is found == not relaying\n");
 	}
 }
 

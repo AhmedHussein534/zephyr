@@ -26,10 +26,10 @@
 //#include <stdlib.h>
 
 #define CID_INTEL 	 0x0002   /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR  	 0x0002   /*Unicast Address*/
+#define NODE_ADDR  	 0x0004   /*Unicast Address*/
 #define GROUP_ADDR 	 0x9999  /*The Address to use for pub and sub*/
 #define START     	 0x20      /* Start of dummy data */
-#define DATA_LEN   	 6       /*length of status (more than 8 == segmented) */
+#define DATA_LEN   	 12       /*length of status (more than 8 == segmented) */
 #define TEMP_ID		 	 0b00000000001
 #define PRESSURE_ID  0b00000000010
 #define X_ID 	 0b00000000011
@@ -155,7 +155,7 @@ static struct bt_mesh_health_srv health_srv = {
 
 BT_MESH_HEALTH_PUB_DEFINE(health_pub, 0);
 BT_MESH_MODEL_PUB_DEFINE(sensor_pub_srv, periodic_update, 2+DATA_LEN);
-u8_t sensors[]={200,150,0};
+u16_t sensors[]={200,150,0};
 bool dir[]={true,true};
 
 int periodic_update (struct bt_mesh_model *mod)
@@ -171,7 +171,7 @@ int periodic_update (struct bt_mesh_model *mod)
 			sensors[0]++;
 	else
 			sensors[0]--;
-	net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[0]);
+	net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[0]);
 	printk("TVL: %04x,DATA: %i\n",((0b0<<7)+(0b1000<<6)+TEMP_ID), sensors[0]);
 
 	/*Pressure simulation*/
@@ -182,17 +182,16 @@ int periodic_update (struct bt_mesh_model *mod)
 			sensors[1]+=5;
 	else
 			sensors[1]-=5;
-	net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[1]);
+	net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[1]);
 	printk("TVL: %04x,DATA: %i\n",((0b0<<7)+(0b1000<<6)+PRESSURE_ID), sensors[1]);
 
 	//net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+X_ID));
 
 	/*X simulation*/
-	/*
+
 	     //sensors[2]=(rand()%(255+1));
-	net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[2]);
-	printk("TVL: %04x,DATA: %04x\n",((0b0<<7)+(0b1000<<6)+X_ID), sensors[1]);
-*/
+	net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[2]);
+	printk("TVL: %04x,DATA: %04x\n",((0b0<<7)+(0b1000<<6)+X_ID), sensors[2]);
 
 	return 0;
 }
@@ -292,7 +291,7 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 	{
 		case 0:
 		printk("[GUI] starting Publishing \n");
-		pub.period = ((0x01<<6)+0x04);
+		pub.period = ((0x00<<6)+0x05);
 		printk("Period is 0x%04x \n",pub.period );
 		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
 		break;
@@ -308,7 +307,7 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 		case 2:
 		printk("Button 3 pressed - INC \n");
 		if ((pub.period & BIT_MASK(6))<=0x3d)
-				pub.period +=0x02;
+				pub.period ++;
 		printk("Period is 0x%04x INC \n",pub.period );
 		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
 		break;
@@ -316,7 +315,7 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 		case 3:
 		printk("Button 4 pressed - DEC \n");
 		if ((pub.period & BIT_MASK(6))>=0x02)
-				pub.period -=0x02;
+				pub.period --;
 		printk("Period is 0x%04x DEC \n",pub.period );
 		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
 		break;
@@ -346,15 +345,15 @@ static void sen_get(struct bt_mesh_model *model,
 	bt_mesh_model_msg_init(&msg, BT_MESH_MODEL_OP_SENSOR_STATUS);
 		/*Temp_simulation*/
 		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+TEMP_ID));
-		net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[0]);
+		net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[0]);
 		/*Pressure simulation*/
 		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+PRESSURE_ID));
-		net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[1]);
+		net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[1]);
 		/*X simulation*/
-		/*
+
 		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+X_ID));
-		net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[2]);
-		*/
+		net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[2]);
+
 	if (bt_mesh_model_send(model, ctx, &msg, NULL, NULL)) {
 		SYS_LOG_ERR("Unable to Status response");
 	}
@@ -441,7 +440,7 @@ static const struct bt_mesh_prov prov = {
 	pub.addr = 0x0001;
 	pub.app_idx=app_idx;
 	pub.ttl = 0x07;
-	pub.period =((0x01<<6)+0x04);
+	pub.period =((0x00<<6)+0x05);
 	printk("Configuration complete\n");
  }
 

@@ -110,7 +110,9 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
 						struct rwait_data rwait_data, struct bt_mesh_net_rx* rx, bool relay);
 static int destination_list_create_entry(struct destination_list_entry **entry_location,sys_slist_t *destination_list);
 static void destination_list_delete_entry(struct destination_list_entry *entry, sys_slist_t *destination_list );
-/*static void view_destination_list(sys_slist_t *destination_list);*/
+/*
+static void view_destination_list(sys_slist_t *destination_list);
+*/
 static int rerr_send(struct rerr_list_entry *data);
 static bool rerr_list_search_entry(u16_t next_hop,u16_t net_idx,struct rerr_list_entry **entry);
 void search_callback(struct bt_mesh_route_entry *entry_found, struct bt_mesh_route_entry **temp);
@@ -125,6 +127,7 @@ static void hello_msg_list_entry_expiry_fn(struct k_timer *timer_id);
 static void add_neighbour(u16_t neighbour, u16_t net_idx);
 void remove_neighbour(u16_t neighbour, u16_t net_idx);
 
+
 static void overhead_control (unsigned int len)
 {
 	unsigned int n= (len-1)/8 ;       //number of segments -  1
@@ -136,7 +139,7 @@ static void overhead_control (unsigned int len)
 	else {
 	overhead = 9+1+8+len;
 	}
-	printk("[GUI] PktOverhead - %d",overhead);
+	printk("[GUI] PktOverhead-%d\n",overhead);
 	return;
 }
 
@@ -1448,7 +1451,7 @@ void bt_mesh_trans_hello_msg_recv(u16_t src)
   	struct hello_msg_list_entry temp_entry;
   	struct hello_msg_list_entry *entry = &temp_entry;
 	  entry->source_address=src;
-		overhead_control(3); //size=3
+		//overhead_control(3); //size=3
   	if (hello_msg_list_search_entry(src, &entry))
   	{
 

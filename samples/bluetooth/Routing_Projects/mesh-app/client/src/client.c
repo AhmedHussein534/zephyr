@@ -59,6 +59,10 @@ struct sensors{
 	u16_t unicast;
 	u32_t temp;
 	u32_t pressure;
+	u32_t X;
+};
+struct sensors sensor_data[NODES_NUM]={
+	{0x0002,0,0,0},{0x0003,0,0,0},{0x0004,0,0,0}
 };
 K_SEM_DEFINE(sem, 1, 1);
 K_MSGQ_DEFINE(msgQ, sizeof(struct sensors), QSIZE, ALLIGN); /*Initialize the Message Queue*/
@@ -90,7 +94,7 @@ static void overhead_data (unsigned int len)
 	unsigned int n= (len-1)/8 ;       //number of segments -  1
 	unsigned int overhead =0;
 	overhead=(n+1)*(9+4+8)+len;
-	printk("[GUI] PktOverhead - %d",overhead);
+	printk("[GUI] PktOverhead - %d\n",overhead);
 	return;
 }
 static void sen_descriptor_status(struct bt_mesh_model *model,struct bt_mesh_msg_ctx *ctx,struct net_buf_simple *buf);
@@ -217,23 +221,34 @@ static const struct bt_mesh_comp comp = {
  * Mesh Model Specification 3.1.1
  *
  */
-bool endE2E= false;
+bool endE2E[NODES_NUM]= {false};
 static void sen_status(struct bt_mesh_model *model,
 			  struct bt_mesh_msg_ctx *ctx,
 			  struct net_buf_simple *buf)
 {struct sensors recvd_data;
-	if(endE2E==false)
-	{
-		printk("[GUI] EndE2E\n");
-		endE2E=true;
-	}
+				//TODO: change the method
+	 int i;
+	 for (i=0;i<NODES_NUM;i++)
+		if (sensor_data[i].unicast==ctx->addr)
+		{
+			if(endE2E[i]==false)
+	  	{
+	  		printk("[GUI] EndE2E-0x%04x\n",ctx->addr);
+	  		endE2E[i]=true;
+	  	}
+		}
+	//overhead_data(buf->len);
+	printk("[GUI] PktActual-%d\n",buf->len);
+
 	/*skipping the formalities, assuming we know format, size and did ID mapping*/
 net_buf_simple_pull_le16(buf);
-recvd_data.temp = net_buf_simple_pull_u8(buf);
+recvd_data.temp = net_buf_simple_pull_le16(buf);
 net_buf_simple_pull_le16(buf);
-recvd_data.pressure = net_buf_simple_pull_u8(buf);
+recvd_data.pressure = net_buf_simple_pull_le16(buf);
+net_buf_simple_pull_le16(buf);
+recvd_data.X = net_buf_simple_pull_le16(buf);
 recvd_data.unicast = ctx->addr;
-printk("[%04x] status: Tempreture: %i, Pressure: %i \n",recvd_data.unicast,recvd_data.temp,recvd_data.pressure);
+printk("[%04x] status: Temperature: %i, Pressure: %i \n",recvd_data.unicast,recvd_data.temp,recvd_data.pressure);
 k_msgq_put(&msgQ, &recvd_data, K_NO_WAIT);
 }
 
@@ -310,9 +325,6 @@ void aggregator(void *d1,void *d2, void *d3)
 	u32_t counter[NODES_NUM+1]={0};
 	u32_t msg_num;
 	int i;
-	struct sensors sensor_data[NODES_NUM]={
-		{0x0002,0,0},{0x0003,0,0},{0x0004,0,0}
-	};
 	struct sensors sensor_recvd;
 	k_sem_take(&sem, K_FOREVER);
 	while(1)
@@ -345,7 +357,7 @@ void aggregator(void *d1,void *d2, void *d3)
 		{
 			if (counter[i+1]!=0)
 			{
-			printk("[GUI] %04x-Tempreture-%i\n",sensor_data[i].unicast,sensor_data[i].temp/counter[i+1]);
+			printk("[GUI] %04x-Temperature-%i\n",sensor_data[i].unicast,sensor_data[i].temp/counter[i+1]);
 			printk("[GUI] %04x-Pressure-%i\n",sensor_data[i].unicast,sensor_data[i].pressure/counter[i+1]);
 			}
 			sensor_data[i].temp=0;

@@ -17,6 +17,7 @@
 #include <bluetooth/mesh/cfg_cli.h>
 
 
+
 #define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG)
 #include "common/log.h"
 
@@ -98,7 +99,7 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 		struct bt_mesh_cfg_hb_pub pub = {
 		.dst = GROUP_ADDR,
 		.count = 0xff,
-		.period = 0x05,
+		.period = 0x01,
 		.ttl = 0,
 		.feat = 0,
 		.net_idx = net_idx,

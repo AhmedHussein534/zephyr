@@ -11,6 +11,7 @@
 
 #include <misc/printk.h>
 #include <misc/byteorder.h>
+#include <misc/util.h>
 #include <nrf.h>
 #include <device.h>
 #include <gpio.h>
@@ -18,15 +19,21 @@
 #include <bluetooth/conn.h>
 #include <bluetooth/l2cap.h>
 #include <bluetooth/hci.h>
+#include <errno.h>
 #include <bluetooth/mesh.h>
 #include <stdio.h>
 #include <board.h>
+//#include <stdlib.h>
 
-#define CID_INTEL  0x0002   /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR  0x0001   /*Unicast Address*/
-#define GROUP_ADDR 0x9999  /*The Address to use for pub and sub*/
-#define START      0x20      /* Start of dummy data */
-#define DATA_LEN   8       /*length of status (more than 8 == segmented) */
+#define CID_INTEL 	 0x0002   /*Company identifier assigned by the Bluetooth SIG*/
+#define NODE_ADDR  	 0x0002   /*Unicast Address*/
+#define GROUP_ADDR 	 0x9999  /*The Address to use for pub and sub*/
+#define START     	 0x20      /* Start of dummy data */
+#define DATA_LEN   	 6       /*length of status (more than 8 == segmented) */
+#define TEMP_ID		 	 0b00000000001
+#define PRESSURE_ID  0b00000000010
+#define X_ID 	 0b00000000011
+
 
 
 /*For Provisioning and Configurations*/
@@ -148,16 +155,45 @@ static struct bt_mesh_health_srv health_srv = {
 
 BT_MESH_HEALTH_PUB_DEFINE(health_pub, 0);
 BT_MESH_MODEL_PUB_DEFINE(sensor_pub_srv, periodic_update, 2+DATA_LEN);
+u8_t sensors[]={200,150,0};
+bool dir[]={true,true};
 
 int periodic_update (struct bt_mesh_model *mod)
 {
 	printk("******* updating *********\n");
 	bt_mesh_model_msg_init(sensor_pub_srv.msg, BT_MESH_MODEL_OP_SENSOR_STATUS);
-	int i;
-	for (i=0;i<DATA_LEN;i++)  //for one segment
-		{
-			net_buf_simple_add_u8(sensor_pub_srv.msg, START+i);
-		}
+
+	/*Temp_simulation*/
+	net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+TEMP_ID));
+	if (sensors[0]==250 || sensors[0] ==150)
+		dir[0] = !dir[0];
+	else if (dir[0])
+			sensors[0]++;
+	else
+			sensors[0]--;
+	net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[0]);
+	printk("TVL: %04x,DATA: %i\n",((0b0<<7)+(0b1000<<6)+TEMP_ID), sensors[0]);
+
+	/*Pressure simulation*/
+	net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+PRESSURE_ID));
+	if (sensors[1]==0 || sensors[1] ==200)
+	dir[1] = !dir[1];
+	else if (dir[1])
+			sensors[1]+=5;
+	else
+			sensors[1]-=5;
+	net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[1]);
+	printk("TVL: %04x,DATA: %i\n",((0b0<<7)+(0b1000<<6)+PRESSURE_ID), sensors[1]);
+
+	//net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+X_ID));
+
+	/*X simulation*/
+	/*
+	     //sensors[2]=(rand()%(255+1));
+	net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[2]);
+	printk("TVL: %04x,DATA: %04x\n",((0b0<<7)+(0b1000<<6)+X_ID), sensors[1]);
+*/
+
 	return 0;
 }
 
@@ -213,6 +249,7 @@ struct device *sw_device;
 static struct gpio_callback button_cb;  //button call back
 static u32_t time, last_time;
 #define BUTTON_DEBOUNCE_DELAY_MS 250
+struct bt_mesh_cfg_mod_pub pub;
 
 /*
  * Map GPIO pins to button number
@@ -255,12 +292,8 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 	{
 		case 0:
 		printk("[GUI] starting Publishing \n");
-		struct bt_mesh_cfg_mod_pub pub = {
-		.addr = 0x0002,
-		.app_idx=app_idx,
-		.ttl = 0x07,
-		.period =0b01000110,   //500 ms
-		};
+		pub.period = ((0x01<<6)+0x04);
+		printk("Period is 0x%04x \n",pub.period );
 		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
 		break;
 
@@ -273,11 +306,19 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 		break;
 
 		case 2:
-		printk("Button 2 pressed - NO ACTION \n");
+		printk("Button 3 pressed - INC \n");
+		if ((pub.period & BIT_MASK(6))<=0x3d)
+				pub.period +=0x02;
+		printk("Period is 0x%04x INC \n",pub.period );
+		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
 		break;
 
 		case 3:
-		printk("Button 3 pressed - NO ACTION \n");
+		printk("Button 4 pressed - DEC \n");
+		if ((pub.period & BIT_MASK(6))>=0x02)
+				pub.period -=0x02;
+		printk("Period is 0x%04x DEC \n",pub.period );
+		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
 		break;
 
 		default:
@@ -303,13 +344,19 @@ static void sen_get(struct bt_mesh_model *model,
 	// 2 opcode + 15 message + 4 AppMIC
 	NET_BUF_SIMPLE_DEFINE(msg, 2 + DATA_LEN + 4);
 	bt_mesh_model_msg_init(&msg, BT_MESH_MODEL_OP_SENSOR_STATUS);
-	int i;
-	for (i=0;i<DATA_LEN;i++)
-		{
-			net_buf_simple_add_u8(&msg, START+i);
-		}
+		/*Temp_simulation*/
+		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+TEMP_ID));
+		net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[0]);
+		/*Pressure simulation*/
+		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+PRESSURE_ID));
+		net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[1]);
+		/*X simulation*/
+		/*
+		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+X_ID));
+		net_buf_simple_add_u8(sensor_pub_srv.msg,sensors[2]);
+		*/
 	if (bt_mesh_model_send(model, ctx, &msg, NULL, NULL)) {
-		SYS_LOG_ERR("Unable to send On Off Status response");
+		SYS_LOG_ERR("Unable to Status response");
 	}
 }
 void sen_descriptor_get(struct bt_mesh_model *model,
@@ -387,20 +434,14 @@ static const struct bt_mesh_prov prov = {
  	printk("Configuring...\n");
  	/* Add Application Key */
  	bt_mesh_cfg_app_key_add(net_idx, addr, net_idx, app_idx, app_key, NULL);
-	/*Bind the App key to BT_MESH_MODEL_ID_GEN_ONOFF_SRV (ONOFF Server Model) */
+	/*Bind the App key Server Model */
  	bt_mesh_cfg_mod_app_bind(net_idx, addr, addr, app_idx, BT_MESH_MODEL_ID_SENSOR_SRV, NULL);
 
-	/* publish periodicaly to a remote address */
-/*
-	struct bt_mesh_cfg_mod_pub pub = {
-	.addr = 0x0002,
-	.app_idx=app_idx,
-	.ttl = 0x07,
-	.period =0b01000110,   //500 ms
-	.transmit=BT_MESH_TRANSMIT(3, 20),
-	};
-	bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
-	*/
+ /* publish periodicaly to a remote address */
+	pub.addr = 0x0001;
+	pub.app_idx=app_idx;
+	pub.ttl = 0x07;
+	pub.period =((0x01<<6)+0x04);
 	printk("Configuration complete\n");
  }
 

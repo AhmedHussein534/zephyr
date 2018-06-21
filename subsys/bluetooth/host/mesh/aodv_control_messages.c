@@ -281,6 +281,8 @@ static void ring_search_timer(struct k_timer *timer_id)
  */
 int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 {
+	/* _GUI_ */
+	printk("\n[GUI] %04x-RREQ-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
 	/* Dissect the received RREQ into fields */
 	struct rreq_data temp;
 	struct rreq_data *data = &temp;
@@ -655,6 +657,8 @@ static int rrep_rwait_list_create_entry(struct rrep_rwait_list_entry *entry_data
  */
 int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 {
+	/* _GUI_ */
+	printk("\n[GUI] %04x-RREP-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
 	/* Dissect the RREP into its fields */
 	struct rrep_data temp;
 	struct rrep_data *data = &temp;
@@ -1122,6 +1126,8 @@ static void rerr_list_delete_entry(struct rerr_list_entry *entry )
  */
 int bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 {
+	/* _GUI_ */
+	printk("\n[GUI] %04x-RRER-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
 	struct rerr_list_entry temp;
 	struct rerr_list_entry *data = &temp;
 	data->destination_number= RERR_GET_DST_NUM(buf);
@@ -1469,6 +1475,7 @@ void bt_mesh_trans_hello_msg_recv(u16_t src)
  */
 
 
+
 static void add_neighbour(u16_t neighbour, u16_t net_idx)
 {
 	/*search for this neighbour in the hello msg list, if not exist , create a new entry*/
@@ -1501,6 +1508,8 @@ static void add_neighbour(u16_t neighbour, u16_t net_idx)
 
 void remove_neighbour(u16_t neighbour, u16_t net_idx)
 {
+	/* _GUI_ */
+	printk("\n[GUI] DROPPED-%04x\n", neighbour);
 	/*check if there's no other route entry needs this neighbout. If not, remove the entry from the hello_msg list*/
 	struct bt_mesh_route_entry *entry;
 	view_valid_list();

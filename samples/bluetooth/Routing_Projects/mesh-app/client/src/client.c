@@ -21,9 +21,14 @@
 #include <board.h>
 
 #define CID_INTEL 0x0002 /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR 0x0002 /*Unicast Address*/
+#define NODE_ADDR 0x0001 /*Unicast Address*/
 #define GROUP_ADDR 0x9999 /*The Address to use for pub and sub*/
-
+#define STACKSIZE 500
+#define ALLIGN 4
+#define QSIZE 1000 //XXX
+#define AGGREGATION_PRIORITY 3
+#define AGGREGATION_INTERVAL 20 *1000 //in ms
+#define NODES_NUM					3
 /*For Provisioning and Configurations*/
 
 static const u8_t net_key[16] = {
@@ -48,6 +53,18 @@ static u16_t addr = NODE_ADDR;
 static u32_t seq;
 static u16_t primary_addr;
 static u16_t primary_net_idx;
+struct k_timer aggregation_timer;
+//u8_t	sensor_state[2];
+struct sensors{
+	u16_t unicast;
+	u32_t temp;
+	u32_t pressure;
+};
+K_SEM_DEFINE(sem, 1, 1);
+K_MSGQ_DEFINE(msgQ, sizeof(struct sensors), QSIZE, ALLIGN); /*Initialize the Message Queue*/
+K_THREAD_STACK_DEFINE(stack_area, STACKSIZE);
+struct k_thread aggregation_thread;
+
 
 /*
  * The include must follow the define for it to take effect.
@@ -144,21 +161,8 @@ static struct bt_mesh_health_srv health_srv = {
 
 BT_MESH_HEALTH_PUB_DEFINE(health_pub, 0);
 BT_MESH_MODEL_PUB_DEFINE(sensor_pub_cli, NULL, 1+0);  //client doesn't publish data
-/*
-BT_MESH_MODEL_PUB_DEFINE(sensor_pub_srv, periodic_update, 14);
-int periodic_update (struct bt_mesh_model *mod)
-{
-	printk("******* updating *********\n");
-	char *data = mod->user_data;
-	bt_mesh_model_msg_init(sensor_pub_srv.msg, BT_MESH_MODEL_OP_SENSOR_STATUS);
-	int i;
-	for (i=0;i<=14;i++)
-		{
-			net_buf_simple_add_u8(sensor_pub_srv.msg, data[i]);
-		}
-	return 0;
-}
-*/
+
+
 /*
  * Models in an element must have unique op codes.
  *
@@ -213,19 +217,24 @@ static const struct bt_mesh_comp comp = {
  * Mesh Model Specification 3.1.1
  *
  */
-
+bool endE2E= false;
 static void sen_status(struct bt_mesh_model *model,
 			  struct bt_mesh_msg_ctx *ctx,
 			  struct net_buf_simple *buf)
-{
-	u8_t	state=0;
-	printk("status: ");
-	while (buf->len != 0)
+{struct sensors recvd_data;
+	if(endE2E==false)
 	{
-	state=net_buf_simple_pull_u8(buf);
-	printk("%02x ",state);
+		printk("[GUI] EndE2E\n");
+		endE2E=true;
 	}
-	printk("\n");
+	/*skipping the formalities, assuming we know format, size and did ID mapping*/
+net_buf_simple_pull_le16(buf);
+recvd_data.temp = net_buf_simple_pull_u8(buf);
+net_buf_simple_pull_le16(buf);
+recvd_data.pressure = net_buf_simple_pull_u8(buf);
+recvd_data.unicast = ctx->addr;
+printk("[%04x] status: Tempreture: %i, Pressure: %i \n",recvd_data.unicast,recvd_data.temp,recvd_data.pressure);
+k_msgq_put(&msgQ, &recvd_data, K_NO_WAIT);
 }
 
 static void sen_descriptor_status(struct bt_mesh_model *model,
@@ -288,6 +297,65 @@ static const struct bt_mesh_prov prov = {
 	.reset = prov_reset,
 };
 
+/*Aggregation Timer*/
+void aggregation_timer_expiry_fn(struct k_timer *timer_id)
+{
+	k_sem_give(&sem);
+}
+
+K_TIMER_DEFINE(aggregation_timer, aggregation_timer_expiry_fn, NULL);
+
+void aggregator(void *d1,void *d2, void *d3)
+{
+	u32_t counter[NODES_NUM+1]={0};
+	u32_t msg_num;
+	int i;
+	struct sensors sensor_data[NODES_NUM]={
+		{0x0002,0,0},{0x0003,0,0},{0x0004,0,0}
+	};
+	struct sensors sensor_recvd;
+	k_sem_take(&sem, K_FOREVER);
+	while(1)
+	{
+		k_sem_take(&sem, K_FOREVER);
+		counter[NODES_NUM+1]=0;
+		/*reads data from Queue and */
+		msg_num= k_msgq_num_used_get(&msgQ);
+		if(!msg_num)
+				{
+					printk("WARNING: ALL NODES ARE DOWN!");
+					continue;
+				}
+		while(counter[0]<=msg_num && k_msgq_get(&msgQ, &sensor_recvd, K_NO_WAIT) == 0)
+		{
+			for(i=0;i<NODES_NUM;i++)
+			{
+				if(sensor_recvd.unicast==sensor_data[i].unicast)
+					{
+						sensor_data[i].temp+= sensor_recvd.temp;
+						sensor_data[i].pressure+=sensor_recvd.pressure;
+						counter[i+1]++;
+						break;
+					}
+
+			}
+		counter[0]++;
+		}
+		for(i=0;i<NODES_NUM;i++)
+		{
+			if (counter[i+1]!=0)
+			{
+			printk("[GUI] %04x-Tempreture-%i\n",sensor_data[i].unicast,sensor_data[i].temp/counter[i+1]);
+			printk("[GUI] %04x-Pressure-%i\n",sensor_data[i].unicast,sensor_data[i].pressure/counter[i+1]);
+			}
+			sensor_data[i].temp=0;
+			sensor_data[i].pressure=0;
+			counter[i]=0;
+		}
+		counter[i]=0;
+	}
+}
+
 
 /*
  * Bluetooth Ready Callback
@@ -303,6 +371,9 @@ static const struct bt_mesh_prov prov = {
 	/* publish periodicaly to a remote address */
 	bt_mesh_cfg_mod_sub_add(net_idx, addr, addr, 0x0001, BT_MESH_MODEL_ID_SENSOR_CLI, NULL);
 	printk("Configuration complete\n");
+
+	k_thread_create(&aggregation_thread, stack_area, K_THREAD_STACK_SIZEOF(stack_area), aggregator, NULL, NULL, NULL, AGGREGATION_PRIORITY, 0, K_NO_WAIT);
+  k_timer_start(&aggregation_timer, AGGREGATION_INTERVAL, AGGREGATION_INTERVAL);
  }
 
 
@@ -352,7 +423,7 @@ void log_cbuf_put(const char *format, ...)
 	va_start(args, format);
 	vsnprintf(buf, sizeof(buf), format, args);
 	va_end(args);
-	printk("[%04x] %s", primary_addr, buf);
+	//printk("[%04x] %s", primary_addr, buf);
 }
 
 void board_init(u16_t *addr, u32_t *seq)

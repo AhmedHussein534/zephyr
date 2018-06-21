@@ -13,6 +13,7 @@
 #include <misc/util.h>
 #include <misc/byteorder.h>
 
+
 #include <net/buf.h>
 
 #include <bluetooth/hci.h>
@@ -598,6 +599,9 @@ static bool is_replay(struct bt_mesh_net_rx *rx)
 static int sdu_recv(struct bt_mesh_net_rx *rx, u8_t hdr, u8_t aszmic,
 		    struct net_buf_simple *buf)
 {
+	/* _GUI_ */
+	if (!(rx->ctx.addr==bt_mesh_primary_addr()))
+					printk("\n[GUI] %04x-Data-%04x\n",rx->ctx.addr, bt_mesh_primary_addr());
 	NET_BUF_SIMPLE_DEFINE(sdu, CONFIG_BT_MESH_RX_SDU_MAX - 4);
 	u8_t *ad;
 	u16_t i;

@@ -464,7 +464,7 @@ int bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 	u8_t TTL = 2; /* Initial TTL */
 	BT_DBG("current TTL=%d", TTL);
 	struct bt_mesh_route_entry *entry;
-	if (bt_mesh_search_invalid_destination(source_address, destination_address,tx->ctx->net_idx, &entry))
+	if (bt_mesh_search_invalid_rerr_destination(source_address, destination_address,tx->ctx->net_idx, &entry))
 	{
 		destination_sequence_number = entry->destination_sequence_number;
 		BT_DBG("destination sequence number %08x ",destination_sequence_number);
@@ -1137,6 +1137,7 @@ int bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	}
 	view_valid_list();
   	view_invalid_list();
+  	view_invalid_rerr_list();
   	view_hello_msg_list();
   	view_rerr_list();
 	return 0;
@@ -1160,9 +1161,9 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
 	/*Current node is a terminal node in the found path*/
 	if ( entry_found->source_address==bt_mesh_primary_addr())
 	{
-		//bt_mesh_invalidate_route(entry_found);
+		bt_mesh_invalidate_rerr_route(entry_found);
 		remove_neighbour(entry_found->next_hop, entry_found->net_idx);
-		bt_mesh_delete_entry_link_drop(entry_found);
+		//bt_mesh_delete_entry_link_drop(entry_found);
 	}
 	else /*Current node is an intermediate node in the found path*/
 	{
@@ -1211,10 +1212,12 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
 		if(entry==(*temp) && (*temp) !=NULL && temp_node!= NULL)
 			(*temp)=CONTAINER_OF(temp_node,struct bt_mesh_route_entry,node);
 
+		bt_mesh_invalidate_rerr_route(entry_found);
 		remove_neighbour(entry_found->next_hop, entry_found->net_idx);
-		bt_mesh_delete_entry_link_drop(entry_found);
+		//bt_mesh_delete_entry_link_drop(entry_found);
+		bt_mesh_invalidate_rerr_route(entry);
 		remove_neighbour(entry->next_hop, entry->net_idx);
-		bt_mesh_delete_entry_link_drop(entry);
+		//bt_mesh_delete_entry_link_drop(entry);
 
 	}
 }
@@ -1322,6 +1325,7 @@ void hello_msg_list_entry_expiry_fn(struct k_timer *timer_id)
 	hello_msg_list_delete_entry(entry);
 	view_valid_list();
 	view_invalid_list();
+	view_invalid_rerr_list();
 	view_hello_msg_list();
 	view_rerr_list();
 }

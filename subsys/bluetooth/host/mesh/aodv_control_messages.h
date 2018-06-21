@@ -1,4 +1,4 @@
-/** @file ctrMsg.h
+/** @file aodv_control_messages.h
  *  @brief Rouitng Control Messages File
  *
  *  Bluetooth routing control messages following AODV protocol.
@@ -49,6 +49,9 @@
 /* Hello Message DEFINITIONS */
 #define HELLO_MSG_LIFETIME  K_SECONDS(20)
 
+#define ELOCAL 139 /* Source address is a local element*/
+#define ENORREQ 140 /* RREP interval has expired*/
+#define ENORREP 141 /* RREP interval has expired*/
 
 /* DATA */
 

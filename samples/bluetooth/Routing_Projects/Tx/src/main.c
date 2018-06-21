@@ -590,23 +590,6 @@ static void button_pressed_worker(struct k_work *work)
 		SYS_LOG_ERR("bt_mesh_model_publish err %d", err);
 	}
 
-	/*struct RREQ_data data = {
-		.source_address = 0x0b0c,
-		.destination_address = 0x0baf,
-		.next_hop = 0x9101,
-		.source_number_of_elements = 69,
-		.G=1,
-		.D=0,
-		.U=1,
-		.I=1,
-		.hop_count=128,
-		.source_sequence_number = 0x112233
-		//.destination_sequence_number = 0x445566
-	};
-		send_RREQ(&data,3,primary_net_idx*/
-
-	//bt_mesh_ctl_send(&tx, 0x0b, &message,sizeof(struct sdu), NULL, NULL, NULL);
-
 }
 
 /* Disable OOB security for SILabs Android app */
@@ -650,7 +633,7 @@ static const struct bt_mesh_prov prov = {
 
 	 /* Add Publication, Sw1 (ELEM 1) is Publishing to GROUP_ADDR */
 	 struct bt_mesh_cfg_mod_pub pub = {
-		 .addr=0x000c, /*change this to the intendded unicast/multicast*/
+		 .addr=0x0ccc, /*change this to the intendded unicast/multicast*/
 		 .app_idx=app_idx,
 		 .ttl=0x07,
 	   .transmit=BT_MESH_TRANSMIT(3, 20),
@@ -666,10 +649,10 @@ void set_tables()
 	struct bt_mesh_route_entry  temp_entry;
 	struct bt_mesh_route_entry  *entry=&temp_entry;
 	bt_mesh_create_entry_valid(&entry);
-	entry->source_address =  0x0ccc;
+	entry->source_address =  0x0aaa;
 	entry->destination_address=0x0ddd;
 	entry->destination_sequence_number=0;
-	entry->next_hop=0x0aaa;
+	entry->next_hop=0x0bbb;
 	entry->source_number_of_elements=4;
 	entry->destination_number_of_elements=4;
 	entry->hop_count=3;
@@ -678,7 +661,7 @@ void set_tables()
 	struct bt_mesh_route_entry  *entry2=&temp_entry2;
 	bt_mesh_create_entry_valid(&entry2);
 	entry2->source_address =  0x0ddd;
-	entry2->destination_address=0x0ccc;
+	entry2->destination_address=0x0aaa;
 	entry2->destination_sequence_number=0;
 	entry2->next_hop=0x0ccc;
 	entry2->source_number_of_elements=4;
@@ -689,10 +672,10 @@ void set_tables()
 	struct bt_mesh_route_entry  temp_entry21;
 	struct bt_mesh_route_entry  *entry21=&temp_entry21;
 	bt_mesh_create_entry_valid(&entry21);
-	entry21->source_address =  0x0ccc;
+	entry21->source_address =  0x0aaa;
 	entry21->destination_address=0x0fff;
 	entry21->destination_sequence_number=0;
-	entry21->next_hop=0x0aaa;
+	entry21->next_hop=0x0bbb;
 	entry21->source_number_of_elements=4;
 	entry21->destination_number_of_elements=4;
 	entry21->hop_count=3;
@@ -702,7 +685,7 @@ void set_tables()
 	struct bt_mesh_route_entry  *entry22=&temp_entry22;
 	bt_mesh_create_entry_valid(&entry22);
 	entry22->source_address =  0x0fff;
-	entry22->destination_address=0x0ccc;
+	entry22->destination_address=0x0aaa;
 	entry22->destination_sequence_number=0;
 	entry22->next_hop=0x0ccc;
 	entry22->source_number_of_elements=4;
@@ -714,7 +697,7 @@ void set_tables()
 	struct hello_msg_list_entry  temp_entry_hello;
 	struct hello_msg_list_entry  *entry_hello=&temp_entry_hello;
 	hello_msg_list_create_entry(&entry_hello);
-	entry_hello->source_address=0x0aaa;
+	entry_hello->source_address=0x0ccc;
 	entry_hello->net_idx=net_idx;
 /*
 	struct hello_msg_list_entry  temp_entry_hello2;
@@ -760,7 +743,7 @@ if (bt_le_oob_get_local(&oob)) {
 	}
 
 	printk("Provisioning completed\n");
-	//set_tables();
+	set_tables();
 	configure();
 }
 

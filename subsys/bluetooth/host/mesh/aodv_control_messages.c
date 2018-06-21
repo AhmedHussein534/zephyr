@@ -125,6 +125,21 @@ static void hello_msg_list_entry_expiry_fn(struct k_timer *timer_id);
 static void add_neighbour(u16_t neighbour, u16_t net_idx);
 void remove_neighbour(u16_t neighbour, u16_t net_idx);
 
+static void overhead_control (unsigned int len)
+{
+	unsigned int n= (len-1)/8 ;       //number of segments -  1
+	unsigned int overhead =0;
+	if (len>11)              //segmented or data
+	{
+	 overhead=(n+1)*(9+4+8)+len;
+	}
+	else {
+	overhead = 9+1+8+len;
+	}
+	printk("[GUI] PktOverhead - %d",overhead);
+	return;
+}
+
 
 /*static void view_rrep_rwait_list();*/
 
@@ -281,6 +296,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	data->I = RREQ_GET_I_FLAG(buf);
 	data->destination_sequence_number = RREQ_GET_DST_SEQ(buf);
 	data->source_sequence_number = RREQ_GET_SRC_SEQ(buf);
+	overhead_control(buf->len);
 
 	BT_DBG("RREQ:source_address 0x%04x destination_address 0x%04x next_hop 0x%04x",
 	 data->source_address, data->destination_address,data->next_hop);
@@ -648,7 +664,7 @@ int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	data->destination_sequence_number = RREP_GET_SEQ_NUM(buf);
 	data->hop_count = RREP_GET_HOP_COUNT(buf);
 	data->destination_number_of_elements = RREP_GET_SRC_NUMBER_OF_ELEMENTS(buf);
-
+	overhead_control(buf->len);
 	/* Testing: View received RREP  */
 	BT_DBG("RREP R 0x%01x,RREP source_address 0x%04x,RREP dst 0x%04x ", data->R,data->source_address,data->destination_address);
 	BT_DBG("RREP seq 0x%04x,RREP hop_count 0x%02,RREP elem 0x%02x ", data->destination_sequence_number, data->hop_count, data->destination_number_of_elements);
@@ -850,7 +866,7 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 	struct rwait_data temp_data;
 	struct rwait_data *data = &temp_data;
 	struct bt_mesh_route_entry *temp = NULL;
-
+	overhead_control(buf->len);
 	if (buf->len < sizeof(*data))
 	{
 		BT_WARN("Too short data");
@@ -1055,7 +1071,7 @@ static void rerr_list_delete_entry(struct rerr_list_entry *entry )
  *	@return : 0 on success. Otherwise, sending control message failed
  */
 
-static int rerr_send(struct rerr_list_entry *data)
+	static int rerr_send(struct rerr_list_entry *data)
 {
 	/*only used by intermediate nodes*/
 	struct bt_mesh_msg_ctx ctx =
@@ -1113,7 +1129,7 @@ int bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	u32_t destination_sequence_number;
 	/*Loop to obtain all destinations inside the buffer */
 	BT_DBG("RERR RECV:destination_number =%01x : ", data->destination_number);
-
+  overhead_control(buf->len);
 	for (int i=0; i<data->destination_number;i++)
 	{
 		destination_address = RERR_GET_DST_ADDR(buf,i*2 + i*3 +1);
@@ -1426,6 +1442,7 @@ void bt_mesh_trans_hello_msg_recv(u16_t src)
   	struct hello_msg_list_entry temp_entry;
   	struct hello_msg_list_entry *entry = &temp_entry;
 	  entry->source_address=src;
+		overhead_control(3); //size=3
   	if (hello_msg_list_search_entry(src, &entry))
   	{
 

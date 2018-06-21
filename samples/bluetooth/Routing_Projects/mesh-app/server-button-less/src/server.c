@@ -20,9 +20,12 @@
 #include <stdio.h>
 #include <board.h>
 
-#define CID_INTEL 0x0002 /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR 0x0002 /*Unicast Address*/
-#define GROUP_ADDR 0x9999 /*The Address to use for pub and sub*/
+#define CID_INTEL  0x0002   /*Company identifier assigned by the Bluetooth SIG*/
+#define NODE_ADDR  0x0001   /*Unicast Address*/
+#define GROUP_ADDR 0x9999  /*The Address to use for pub and sub*/
+#define START      0x20      /* Start of dummy data */
+#define DATA_LEN   8       /*length of status (more than 8 == segmented) */
+
 
 /*For Provisioning and Configurations*/
 
@@ -67,22 +70,21 @@ static u16_t primary_net_idx;
 #define BT_MESH_MODEL_OP_SENSOR_COLUMN_STATUS	      BT_MESH_MODEL_OP_1(0x53)
 #define BT_MESH_MODEL_OP_SENSOR_SERIES_GET	        BT_MESH_MODEL_OP_2(0x82,0x33)
 #define BT_MESH_MODEL_OP_SENSOR_SERIES_STATUS	      BT_MESH_MODEL_OP_1(0x54)
+
 /* 2) Declare model functions*/
-static void overhead_data (unsigned int len)
-{
-	unsigned int n= (len-1)/8 ;       //number of segments -  1
-	unsigned int overhead =0;
-	overhead=(n+1)*(9+4+8)+len;
-	printk("[GUI] PktOverhead - %d",overhead);
-	return;
-}
-static void sen_descriptor_status(struct bt_mesh_model *model,struct bt_mesh_msg_ctx *ctx,struct net_buf_simple *buf);
-static void sen_status(struct bt_mesh_model *model,struct bt_mesh_msg_ctx *ctx,struct net_buf_simple *buf);
-static void sen_column_status(struct bt_mesh_model *model,struct bt_mesh_msg_ctx *ctx,struct net_buf_simple *buf);
-static void sen_series_status(struct bt_mesh_model *model,struct bt_mesh_msg_ctx *ctx,struct net_buf_simple *buf);
-
-
-//static int periodic_update(struct bt_mesh_model *mod);
+static void sen_descriptor_get(struct bt_mesh_model *model,
+				struct bt_mesh_msg_ctx *ctx,
+				struct net_buf_simple *buf);
+static void sen_get(struct bt_mesh_model *model,
+				struct bt_mesh_msg_ctx *ctx,
+				struct net_buf_simple *buf);
+static void sen_column_get(struct bt_mesh_model *model,
+				struct bt_mesh_msg_ctx *ctx,
+				struct net_buf_simple *buf);
+static void sen_series_get(struct bt_mesh_model *model,
+				struct bt_mesh_msg_ctx *ctx,
+				struct net_buf_simple *buf);
+static int periodic_update(struct bt_mesh_model *mod);
 
 /*
  * Server Configuration Declaration
@@ -143,22 +145,20 @@ static struct bt_mesh_health_srv health_srv = {
 
 
 BT_MESH_HEALTH_PUB_DEFINE(health_pub, 0);
-BT_MESH_MODEL_PUB_DEFINE(sensor_pub_cli, NULL, 1+0);  //client doesn't publish data
-/*
-BT_MESH_MODEL_PUB_DEFINE(sensor_pub_srv, periodic_update, 14);
+BT_MESH_MODEL_PUB_DEFINE(sensor_pub_srv, periodic_update, 2+DATA_LEN);
+
 int periodic_update (struct bt_mesh_model *mod)
 {
 	printk("******* updating *********\n");
-	char *data = mod->user_data;
 	bt_mesh_model_msg_init(sensor_pub_srv.msg, BT_MESH_MODEL_OP_SENSOR_STATUS);
 	int i;
-	for (i=0;i<=14;i++)
+	for (i=0;i<DATA_LEN;i++)  //for one segment
 		{
-			net_buf_simple_add_u8(sensor_pub_srv.msg, data[i]);
+			net_buf_simple_add_u8(sensor_pub_srv.msg, START+i);
 		}
 	return 0;
 }
-*/
+
 /*
  * Models in an element must have unique op codes.
  *
@@ -169,17 +169,20 @@ int periodic_update (struct bt_mesh_model *mod)
  */
 
 /*
- * Sensor Model Server Client Dispatch Table
+ * Sensor Model Server Op Dispatch Table
  *
  */
 
- static const struct bt_mesh_model_op sensor_cli_op[] = {
- 	{ BT_MESH_MODEL_OP_SENSOR_DESCRIPTOR_STATUS, 1, sen_descriptor_status },
-   { BT_MESH_MODEL_OP_SENSOR_STATUS, 1, sen_status }, //minimum data to receive
-   { BT_MESH_MODEL_OP_SENSOR_COLUMN_STATUS, 1, sen_column_status },
-   { BT_MESH_MODEL_OP_SENSOR_SERIES_STATUS, 1, sen_series_status },
- 	BT_MESH_MODEL_OP_END,
- };
+static const struct bt_mesh_model_op sensor_srv_op[] = {
+	//TODO: change minimum
+	{ BT_MESH_MODEL_OP_SENSOR_DESCRIPTOR_GET, 0, sen_descriptor_get },
+	{ BT_MESH_MODEL_OP_SENSOR_GET, 0, sen_get },
+	{ BT_MESH_MODEL_OP_SENSOR_COLUMN_GET, 0, sen_column_get },
+  { BT_MESH_MODEL_OP_SENSOR_SERIES_GET, 0,sen_series_get },
+	BT_MESH_MODEL_OP_END,
+};
+
+
 
 /*
  *
@@ -193,8 +196,8 @@ static struct bt_mesh_model root_models[] = {
 	BT_MESH_MODEL_CFG_CLI(&cfg_cli),
 	BT_MESH_MODEL_HEALTH_SRV(&health_srv, &health_pub),
   	/*              ID-OPCODE - PUBLICATION - USER_DATA */
-	BT_MESH_MODEL(BT_MESH_MODEL_ID_SENSOR_CLI, sensor_cli_op,
-		      &sensor_pub_cli, NULL),
+	BT_MESH_MODEL(BT_MESH_MODEL_ID_SENSOR_SRV, sensor_srv_op,
+		      &sensor_pub_srv,NULL),
 };
 /* Declaring root element */
 static struct bt_mesh_elem root = BT_MESH_ELEM(0, root_models, BT_MESH_MODEL_NONE);
@@ -214,35 +217,42 @@ static const struct bt_mesh_comp comp = {
  *
  */
 
-static void sen_status(struct bt_mesh_model *model,
+static void sen_get(struct bt_mesh_model *model,
 			  struct bt_mesh_msg_ctx *ctx,
 			  struct net_buf_simple *buf)
 {
-	u8_t	state=0;
-	printk("status: ");
-	while (buf->len != 0)
-	{
-	state=net_buf_simple_pull_u8(buf);
-	printk("%02x ",state);
+	// 2 opcode + 15 message + 4 AppMIC
+	NET_BUF_SIMPLE_DEFINE(msg, 2 + DATA_LEN + 4);
+	bt_mesh_model_msg_init(&msg, BT_MESH_MODEL_OP_SENSOR_STATUS);
+	int i;
+	for (i=0;i<DATA_LEN;i++)
+		{
+			net_buf_simple_add_u8(&msg, START+i);
+		}
+	if (bt_mesh_model_send(model, ctx, &msg, NULL, NULL)) {
+		SYS_LOG_ERR("Unable to send On Off Status response");
 	}
-	printk("\n");
 }
-
-static void sen_descriptor_status(struct bt_mesh_model *model,
+void sen_descriptor_get(struct bt_mesh_model *model,
 			  struct bt_mesh_msg_ctx *ctx,
 			  struct net_buf_simple *buf)
 				{
 
 				}
 
-static void sen_column_status(struct bt_mesh_model *model,struct bt_mesh_msg_ctx *ctx,struct net_buf_simple *buf)
-	{
+void sen_column_get(struct bt_mesh_model *model,
+			  struct bt_mesh_msg_ctx *ctx,
+			  struct net_buf_simple *buf)
+				{
 
-	}
-static void sen_series_status(struct bt_mesh_model *model,struct bt_mesh_msg_ctx *ctx,struct net_buf_simple *buf)
-	{
+				}
+void sen_series_get(struct bt_mesh_model *model,
+			  struct bt_mesh_msg_ctx *ctx,
+			  struct net_buf_simple *buf)
+				{
 
-	}
+				}
+
 
 
 static int output_number(bt_mesh_output_action_t action, uint32_t number)
@@ -299,9 +309,16 @@ static const struct bt_mesh_prov prov = {
  	/* Add Application Key */
  	bt_mesh_cfg_app_key_add(net_idx, addr, net_idx, app_idx, app_key, NULL);
 	/*Bind the App key to BT_MESH_MODEL_ID_GEN_ONOFF_SRV (ONOFF Server Model) */
- 	bt_mesh_cfg_mod_app_bind(net_idx, addr, addr, app_idx, BT_MESH_MODEL_ID_SENSOR_CLI, NULL);
+ 	bt_mesh_cfg_mod_app_bind(net_idx, addr, addr, app_idx, BT_MESH_MODEL_ID_SENSOR_SRV, NULL);
 	/* publish periodicaly to a remote address */
-	bt_mesh_cfg_mod_sub_add(net_idx, addr, addr, 0x0001, BT_MESH_MODEL_ID_SENSOR_CLI, NULL);
+	struct bt_mesh_cfg_mod_pub pub = {
+	.addr = 0x0002,
+	.app_idx=app_idx,
+	.ttl = 0x07,
+	.period =0b01001010,   //1500 ms
+	.transmit=BT_MESH_TRANSMIT(3, 20),
+	};
+	bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
 	printk("Configuration complete\n");
  }
 

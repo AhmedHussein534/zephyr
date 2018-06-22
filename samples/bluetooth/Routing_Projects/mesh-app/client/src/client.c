@@ -26,7 +26,7 @@
 #define STACKSIZE 500
 #define ALLIGN 4
 #define QSIZE 1000 //XXX
-#define AGGREGATION_PRIORITY 3
+#define AGGREGATION_PRIORITY 5
 #define AGGREGATION_INTERVAL 20 *1000 //in ms
 #define NODES_NUM					3
 /*For Provisioning and Configurations*/
@@ -61,6 +61,7 @@ struct sensors{
 	u32_t pressure;
 	u32_t X;
 };
+//XXX
 struct sensors sensor_data[NODES_NUM]={
 	{0x0002,0,0,0},{0x0003,0,0,0},{0x0004,0,0,0}
 };
@@ -330,7 +331,6 @@ void aggregator(void *d1,void *d2, void *d3)
 	while(1)
 	{
 		k_sem_take(&sem, K_FOREVER);
-		counter[NODES_NUM+1]=0;
 		/*reads data from Queue and */
 		msg_num= k_msgq_num_used_get(&msgQ);
 		if(!msg_num)

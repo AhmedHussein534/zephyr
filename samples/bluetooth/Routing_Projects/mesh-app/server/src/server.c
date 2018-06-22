@@ -167,7 +167,8 @@ int periodic_update (struct bt_mesh_model *mod)
 	net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+TEMP_ID));
 	if (sensors[0]==250 || sensors[0] ==150)
 		dir[0] = !dir[0];
-	else if (dir[0])
+
+	if (dir[0])
 			sensors[0]++;
 	else
 			sensors[0]--;
@@ -178,7 +179,7 @@ int periodic_update (struct bt_mesh_model *mod)
 	net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+PRESSURE_ID));
 	if (sensors[1]==0 || sensors[1] ==200)
 	dir[1] = !dir[1];
-	else if (dir[1])
+	if (dir[1])
 			sensors[1]+=5;
 	else
 			sensors[1]-=5;

@@ -20,7 +20,6 @@
 #include "access.h"
 #include "foundation.h"
 
-//TODO:: Surround with configuration parameter
 #include "aodv_control_messages.h"
 #include "routing_table.h"
 

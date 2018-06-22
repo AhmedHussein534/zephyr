@@ -321,7 +321,7 @@ void aggregation_timer_expiry_fn(struct k_timer *timer_id)
 
 K_TIMER_DEFINE(aggregation_timer, aggregation_timer_expiry_fn, NULL);
 
-void aggregator(void *d1,void *d2, void *d3)
+void aggregator()
 {
 	u32_t counter[NODES_NUM+1]={0};
 	u32_t msg_num;
@@ -335,7 +335,7 @@ void aggregator(void *d1,void *d2, void *d3)
 		msg_num= k_msgq_num_used_get(&msgQ);
 		if(!msg_num)
 				{
-					printk("WARNING: ALL NODES ARE DOWN!");
+					printk("WARNING: ALL NODES ARE DOWN!\n");
 					continue;
 				}
 		while(counter[0]<=msg_num && k_msgq_get(&msgQ, &sensor_recvd, K_NO_WAIT) == 0)
@@ -381,7 +381,7 @@ void aggregator(void *d1,void *d2, void *d3)
 	/*Bind the App key to BT_MESH_MODEL_ID_GEN_ONOFF_SRV (ONOFF Server Model) */
  	bt_mesh_cfg_mod_app_bind(net_idx, addr, addr, app_idx, BT_MESH_MODEL_ID_SENSOR_CLI, NULL);
 	/* publish periodicaly to a remote address */
-	bt_mesh_cfg_mod_sub_add(net_idx, addr, addr, 0x0001, BT_MESH_MODEL_ID_SENSOR_CLI, NULL);
+//	bt_mesh_cfg_mod_sub_add(net_idx, addr, addr, 0x0001, BT_MESH_MODEL_ID_SENSOR_CLI, NULL);
 	printk("Configuration complete\n");
 
 	k_thread_create(&aggregation_thread, stack_area, K_THREAD_STACK_SIZEOF(stack_area), aggregator, NULL, NULL, NULL, AGGREGATION_PRIORITY, 0, K_NO_WAIT);

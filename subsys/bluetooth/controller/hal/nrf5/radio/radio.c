@@ -113,7 +113,7 @@ void radio_tx_power_set(u32_t power)
 {
 	/* TODO map power to h/w values. */
 	NRF_RADIO->TXPOWER = power;
-	NRF_RADIO->TXPOWER = RADIO_TXPOWER_TXPOWER_Neg40dBm;/* _TEST_ */
+	//NRF_RADIO->TXPOWER = RADIO_TXPOWER_TXPOWER_Neg40dBm;/* _TEST_ */
 }
 
 void radio_freq_chan_set(u32_t chan)

@@ -451,15 +451,18 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 	const u8_t *key;
 	u8_t *ad;
 	int err;
+	printk("Sending data from %04x to %04x  \n",tx->src,tx->ctx->addr );
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
 		if((!bt_mesh_elem_find(tx->ctx->addr)) && (BT_MESH_ADDR_IS_UNICAST(tx->ctx->addr)) )
 		{
+
 			struct bt_mesh_route_entry *entry=NULL;
 			void view_valid_list();
-			if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,tx->ctx->net_idx,&entry)){
-				bt_mesh_refresh_lifetime_valid(entry);
+			if(bt_mesh_search_valid_destination(bt_mesh_primary_addr(),tx->ctx->addr,tx->ctx->net_idx,&entry))
+			{
 				printk("Destination Found\n");
+				bt_mesh_refresh_lifetime_valid(entry);
 			}
 			else
 			{
@@ -1458,6 +1461,7 @@ int bt_mesh_trans_recv(struct net_buf_simple *buf, struct bt_mesh_net_rx *rx)
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
 		/*refresh the heartbeat timer in case data packet is recieved from a neighbour of interest*/
+		BT_DBG("HB:recv is %04x ",rx->ctx.addr);
 		bt_mesh_trans_hello_msg_recv(rx->ctx.addr);
 	}
 

@@ -1295,6 +1295,7 @@ int bt_mesh_net_decode(struct net_buf_simple *data, enum bt_mesh_net_if net_if,
 void bt_mesh_net_recv(struct net_buf_simple *data, s8_t rssi,
 		      enum bt_mesh_net_if net_if)
 {
+	printk("\n\n\n <<<<<<<bt_mesh_net_recv>>>>>>>. \n\n");
 	NET_BUF_SIMPLE_DEFINE(buf, 29);
 	struct bt_mesh_net_rx rx = { .rssi = rssi };
 	struct net_buf_simple_state state;
@@ -1304,14 +1305,22 @@ void bt_mesh_net_recv(struct net_buf_simple *data, s8_t rssi,
 	if (!bt_mesh_is_provisioned()) {
 		return;
 	}
+	else
+	{
+		printk("Not provisioned \n");
+	}
 
 	if (bt_mesh_net_decode(data, net_if, &rx, &buf)) {
 		return;
 	}
+	{
+		printk("Couldn't decode \n");
+	}
 
+	printk("IN3 \n");
 	/* Save the state so the buffer can later be relayed */
 	net_buf_simple_save(&buf, &state);
-
+	printk("IN4 \n");
 	if (IS_ENABLED(CONFIG_BT_MESH_GATT_PROXY) &&
 	    net_if == BT_MESH_NET_IF_PROXY) {
 		bt_mesh_proxy_addr_add(data, rx.ctx.addr);
@@ -1323,38 +1332,55 @@ void bt_mesh_net_recv(struct net_buf_simple *data, s8_t rssi,
 	bt_mesh_trans_recv(&buf, &rx);
 
 
+	printk("IN \n");
 
-
-	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING)) {
+	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
+	{
+		printk("Routing Configuration \n");
 		bool relay=true;
 		if (rx.dst == BT_MESH_KEY_ANY && rx.ctl) //FIXME
 		{
+			printk("RREQ not relaying == RREQ is dropped \n");
 			relay = false;
 		}
 		/* Routing only happens if Dst is unicast and source is not an internal element */
-	 if (BT_MESH_ADDR_IS_UNICAST(rx.dst) && !bt_mesh_elem_find(rx.ctx.addr) ) {
+	 if (BT_MESH_ADDR_IS_UNICAST(rx.dst) && !bt_mesh_elem_find(rx.ctx.addr) )
+	 {
+	 	printk("THIS THREAD\n");
 		struct bt_mesh_route_entry *entry;
 		if(bt_mesh_search_valid_destination(rx.ctx.addr,rx.dst,rx.ctx.net_idx,&entry)
 			 || (rx.local_match && bt_mesh_search_valid_destination(rx.dst,rx.ctx.addr,rx.ctx.net_idx,	&entry) ) )
 		{
 			bt_mesh_refresh_lifetime_valid(entry);
+			printk("Destination is found == Data packet is relaying \n");
 		}
-		else{
+		else
+		{
 			relay=false;
 			printk("Destination Not Found = Not Relaying \n");
 		}
 	 }
+	 else
+	 {
+		printk("Dst of %04x is unicast and source is not an internal element \n",rx.dst);
+	 }
 	 /* Relay if this was a group/virtual address, or if the destination
 		* was neither a local element nor an LPN we're Friends for.
 		*/
-	 if (!BT_MESH_ADDR_IS_UNICAST(rx.dst) ||
-			 (!rx.local_match && !rx.friend_match && relay) )
+	 if (   ((!BT_MESH_ADDR_IS_UNICAST(rx.dst)) ||
+			 (!rx.local_match && !rx.friend_match)) && relay )
 	 {
-		 net_buf_simple_restore(&buf, &state);
-		 bt_mesh_net_relay(&buf, &rx);
+		net_buf_simple_restore(&buf, &state);
+		bt_mesh_net_relay(&buf, &rx);
+ 	 	printk("General , relaying data from %04x of length %u \n",rx.dst,data->len );
+	 }
+	 else
+	 {
+	 	printk("General , not relaying data from %04x of length %u \n",rx.dst,data->len);
 	 }
 	}
   else {
+  			printk("Routing Configuration is not enabled \n");
 			/* Relay if this was a group/virtual address, or if the destination
 			 * was neither a local element nor an LPN we're Friends for.
 			 */

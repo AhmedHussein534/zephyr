@@ -47,7 +47,7 @@
 #define RERR_GET_DST_SEQ_NUM(buf,i) (buf->data[i+2] + (buf->data[i+3] << 8) + (buf->data[i+4] << 16))
 
 /* Hello Message DEFINITIONS */
-#define HELLO_MSG_LIFETIME  K_SECONDS(20)
+#define HELLO_MSG_LIFETIME  K_SECONDS(120)
 
 #define ELOCAL 139 /* Source address is a local element*/
 #define ENORREQ 140 /* RREP interval has expired*/

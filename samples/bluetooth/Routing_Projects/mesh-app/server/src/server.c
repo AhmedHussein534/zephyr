@@ -26,7 +26,7 @@
 //#include <stdlib.h>
 
 #define CID_INTEL 	 0x0002   /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR  	 0x0004   /*Unicast Address*/
+#define NODE_ADDR  	 0x0002   /*Unicast Address*/
 #define GROUP_ADDR 	 0x9999  /*The Address to use for pub and sub*/
 #define START     	 0x20      /* Start of dummy data */
 #define DATA_LEN   	 12       /*length of status (more than 8 == segmented) */

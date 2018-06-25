@@ -318,6 +318,13 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		data->destination_sequence_number=0x00000000;
 	}
 	data->source_sequence_number = RREQ_GET_SRC_SEQ(buf);
+
+	if(data->hop_count==0)
+	{
+		printk("HB:recv as a RREQ  %04x RSSI is %d ",data->source_address,data->rssi);
+		bt_mesh_trans_hello_msg_recv(data->source_address);				
+	}
+
 	overhead_control(buf->len);
 
 	printk("RREQ:source_address 0x%04x destination_address 0x%04x next_hop 0x%04x",

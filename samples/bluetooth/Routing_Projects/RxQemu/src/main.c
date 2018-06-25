@@ -9,7 +9,7 @@
 #include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/net.h>
 #include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/transport.h>
 #define CID_INTEL 0x0002 /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR 0x0ccc /*Unicast Address*/
+#define NODE_ADDR 0x0005 /*Unicast Address*/
 #define GROUP_ADDR 0xc000 /*The Address to use for pub and sub*/
 
 

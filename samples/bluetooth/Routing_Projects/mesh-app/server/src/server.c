@@ -23,10 +23,11 @@
 #include <bluetooth/mesh.h>
 #include <stdio.h>
 #include <board.h>
+#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/access.h>
 //#include <stdlib.h>
 
 #define CID_INTEL 	 0x0002   /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR  	 0x0002   /*Unicast Address*/
+#define NODE_ADDR  	 0x0003   /*Unicast Address*/
 #define GROUP_ADDR 	 0x9999  /*The Address to use for pub and sub*/
 #define START     	 0x20      /* Start of dummy data */
 #define DATA_LEN   	 12       /*length of status (more than 8 == segmented) */
@@ -193,6 +194,7 @@ int periodic_update (struct bt_mesh_model *mod)
 	     //sensors[2]=(rand()%(255+1));
 	net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[2]);
 	printk("TVL: %04x,DATA: %04x\n",((0b0<<7)+(0b1000<<6)+X_ID), sensors[2]);
+	printk("[GUI] %04x-startE2E\n",bt_mesh_primary_addr());
 
 	return 0;
 }
@@ -292,7 +294,8 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 	{
 		case 0:
 		printk("[GUI] starting Publishing \n");
-		pub.period = ((0x00<<6)+0x05);
+		pub.period=0b01000111;
+		//pub.period = ((0x00<<6)+0x05);
 		printk("Period is 0x%04x \n",pub.period );
 		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
 		break;

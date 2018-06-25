@@ -818,7 +818,11 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
-		bt_mesh_trans_hello_msg_recv(rx->ctx.addr);
+		if(!bt_mesh_elem_find(rx->ctx.addr))
+		{
+			printk("HB:recv is %04x RSSI is %d ",rx->ctx.addr,rx->rssi);
+			bt_mesh_trans_hello_msg_recv(rx->ctx.addr);			
+		}
 	}
 	bt_mesh_heartbeat(rx->ctx.addr, rx->dst, hops, feat);
 
@@ -829,6 +833,53 @@ static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 		    struct net_buf_simple *buf, u64_t *seq_auth)
 {
 	u8_t ctl_op = TRANS_CTL_OP(&hdr);
+
+	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
+	{
+		//for 0x0003
+		
+		if(bt_mesh_primary_addr() == 0x0003)
+		{
+			if (rx->ctx.addr ==0x0004 || rx->ctx.addr ==0x0005 || rx->ctx.addr ==0x0001 )
+			{
+				printk("dropped ctl msg of OpCode 0x%02x from 0x%04x \n", ctl_op,  rx->ctx.addr );
+				return -EINVAL;
+			}
+
+		}
+		else if(bt_mesh_primary_addr() == 0x0002)
+		{
+			if (rx->ctx.addr ==0x0001 )
+			{
+				printk("dropped ctl msg of OpCode 0x%02x from 0x%04x \n", ctl_op,  rx->ctx.addr );
+				return -EINVAL;
+			}
+		}		
+		else if(bt_mesh_primary_addr() == 0x0004)
+		{
+			if (rx->ctx.addr ==0x0003 )
+			{
+				printk("dropped ctl msg of OpCode 0x%02x from 0x%04x \n", ctl_op,  rx->ctx.addr );
+				return -EINVAL;
+			}
+		}
+		else if(bt_mesh_primary_addr() == 0x0001)
+		{
+			if (rx->ctx.addr ==0x0002 || rx->ctx.addr ==0x0003 )
+			{
+				printk("dropped ctl msg of OpCode 0x%02x from 0x%04x \n", ctl_op,  rx->ctx.addr );
+				return -EINVAL;
+			}
+		}
+		else if(bt_mesh_primary_addr() == 0x0005)
+		{
+			if ( rx->ctx.addr ==0x0003 )
+			{
+				printk("dropped ctl msg of OpCode 0x%02x from 0x%04x \n", ctl_op,  rx->ctx.addr );
+				return -EINVAL;
+			}
+		}
+	}
 
 	BT_DBG("OpCode 0x%02x len %u", ctl_op, buf->len);
 	switch (ctl_op) {
@@ -963,6 +1014,7 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 		     size_t data_len, u64_t *seq_auth,
 		     const struct bt_mesh_send_cb *cb, void *cb_data)
 {
+	printk("\n\n<<<<bt_mesh_ctl_send>>>\n");
 	struct net_buf *buf;
 
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
@@ -970,6 +1022,7 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 		if(ctl_op==0x0a)
 		{
 			tx->ctx->send_ttl=0;
+			printk("sending heartbeat\n");
 		}
 	}
 
@@ -1458,12 +1511,6 @@ found_rx:
 
 int bt_mesh_trans_recv(struct net_buf_simple *buf, struct bt_mesh_net_rx *rx)
 {
-	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
-	{
-		/*refresh the heartbeat timer in case data packet is recieved from a neighbour of interest*/
-		BT_DBG("HB:recv is %04x ",rx->ctx.addr);
-		bt_mesh_trans_hello_msg_recv(rx->ctx.addr);
-	}
 
 	u64_t seq_auth = TRANS_SEQ_AUTH_NVAL;
 	enum bt_mesh_friend_pdu_type pdu_type = BT_MESH_FRIEND_PDU_SINGLE;

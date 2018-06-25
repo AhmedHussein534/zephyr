@@ -23,7 +23,8 @@
 #define RREQ_GET_DST_SEQ(buf) buf->data[12] + (buf->data[13] << 8) + (buf->data[14] << 16)
 
 /* Ring search Macros */
-#define RREQ_RING_SEARCH_WAIT_INTERVAL K_SECONDS(10)
+#define RREQ_RING_SEARCH_WAIT_INTERVAL K_MSEC(200)
+#define RREQ_RING_SEARCH_WAIT_INTERVAL_CONST K_MSEC(50)
 #define RREQ_RING_SEARCH_MAX_TTL 10
 
 /* RREP DEFINITIONS */
@@ -47,7 +48,7 @@
 #define RERR_GET_DST_SEQ_NUM(buf,i) (buf->data[i+2] + (buf->data[i+3] << 8) + (buf->data[i+4] << 16))
 
 /* Hello Message DEFINITIONS */
-#define HELLO_MSG_LIFETIME  K_SECONDS(120)
+#define HELLO_MSG_LIFETIME  K_SECONDS(40)
 
 #define ELOCAL 139 /* Source address is a local element*/
 #define ENORREQ 140 /* RREP interval has expired*/

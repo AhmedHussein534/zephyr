@@ -181,6 +181,11 @@ static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
 	{
 		network_next_hop = entry->next_hop;
 	}
+	else if(data->I)
+	{
+		printk("received directive RREQ is dropped\n");
+		return -ENODRREQ;
+	}
 
 	printk("source_address 0x%04x destination_address 0x%04x next_hop 0x%04x",
 	 data->source_address, data->destination_address,data->next_hop);
@@ -449,7 +454,8 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			rwait_send(data,entry_data,temp,rx,false); /* To RREQ's originator */
 		}
 	}
-	else {
+	else
+	{
 		/* Intermediate nodes that has no route to destination shall relay */
 		BT_DBG("Intermediate Node received a flooded RREQ - Relaying ");
 		struct bt_mesh_route_entry *entry;

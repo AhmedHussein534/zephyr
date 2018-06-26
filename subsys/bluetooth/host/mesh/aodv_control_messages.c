@@ -950,6 +950,8 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
  */
 void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 {
+	/* _GUI_ */
+	printk("\n[GUI] %04x-RWAIT-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
 	struct rwait_data temp_data;
 	struct rwait_data *data = &temp_data;
 	struct bt_mesh_route_entry *temp = NULL;

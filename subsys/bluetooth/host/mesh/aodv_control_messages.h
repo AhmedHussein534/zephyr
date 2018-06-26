@@ -54,6 +54,7 @@
 #define ENORREQ 140 /* RREP interval has expired*/
 #define ENORREP 141 /* RREP interval has expired*/
 #define ENODRREQ 142 /* Directive RREQ is dropped*/
+#define ENORREQSENT 143 /* Directive RREQ is dropped*/
 
 
 /* DATA */

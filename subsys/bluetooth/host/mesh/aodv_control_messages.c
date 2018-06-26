@@ -411,7 +411,13 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	 *   - send a directed RREQ to RREQ's destination
 	*/
 	if (IS_ENABLED(CONFIG_BT_MESH_RELAY)){
-	if (bt_mesh_search_valid_destination_without_source(data->destination_address, rx->ctx.net_idx, &entry)
+		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry) &&
+		(data->source_sequence_number <entry->destination_sequence_number +RREQ_RING_SEARCH_MAX_TTL))
+			{
+			printk("RREQ is dropped because of an already existing entry and sequnce number is within ring seach");
+			return -ENORREQSENT;
+			}
+		if (bt_mesh_search_valid_destination_without_source(data->destination_address, rx->ctx.net_idx, &entry)
 						&& data->D == false && data->I == false)
 		{
 		BT_DBG("Intermediate Node received a flooded RREQ and has route to destination ");

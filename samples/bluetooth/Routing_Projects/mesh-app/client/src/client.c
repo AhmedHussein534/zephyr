@@ -19,7 +19,6 @@
 #include <bluetooth/mesh.h>
 #include <stdio.h>
 #include <board.h>
-#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/access.h>
 #define CID_INTEL 0x0002 /*Company identifier assigned by the Bluetooth SIG*/
 #define NODE_ADDR 0x0001 /*Unicast Address*/
 #define GROUP_ADDR 0x9999 /*The Address to use for pub and sub*/
@@ -95,7 +94,7 @@ static void overhead_data (unsigned int len)
 	unsigned int n= (len-1)/8 ;       //number of segments -  1
 	unsigned int overhead =0;
 	overhead=(n+1)*(9+4+8)+len;
-	printk("[GUI] %04x-PktOverhead-%d\n",bt_mesh_primary_addr(),overhead);
+	printk("[GUI] %04x-PktOverhead-%d\n",NODE_ADDR,overhead);
 	return;
 }
 static void sen_descriptor_status(struct bt_mesh_model *model,struct bt_mesh_msg_ctx *ctx,struct net_buf_simple *buf);
@@ -229,7 +228,7 @@ static void sen_status(struct bt_mesh_model *model,
 	struct sensors recvd_data;
 	//TODO: change the method
 	printk("[GUI] %04x-endE2E\n",ctx->addr);
-	  	
+
 	//overhead_data(buf->len);
 	printk("[GUI] %04x-PktActual-%d\n",ctx->addr,buf->len);
 

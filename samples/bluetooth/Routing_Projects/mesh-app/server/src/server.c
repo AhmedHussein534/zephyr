@@ -23,7 +23,6 @@
 #include <bluetooth/mesh.h>
 #include <stdio.h>
 #include <board.h>
-#include </media/rana/DE6E144C6E142037/Engineering/GP/GP/Zephyr/github/after_finals/zephyr/subsys/bluetooth/host/mesh/access.h>
 //#include <stdlib.h>
 
 #define CID_INTEL 	 0x0002   /*Company identifier assigned by the Bluetooth SIG*/
@@ -194,7 +193,7 @@ int periodic_update (struct bt_mesh_model *mod)
 	     //sensors[2]=(rand()%(255+1));
 	net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[2]);
 	printk("TVL: %04x,DATA: %04x\n",((0b0<<7)+(0b1000<<6)+X_ID), sensors[2]);
-	printk("[GUI] %04x-startE2E\n",bt_mesh_primary_addr());
+	printk("[GUI] %04x-startE2E\n",NODE_ADDR);
 
 	return 0;
 }

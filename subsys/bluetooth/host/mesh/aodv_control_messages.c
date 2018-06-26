@@ -443,7 +443,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			data->I = 1;
 			data->hop_count = data->hop_count + 1;
 			data->rssi=(RREQ_GET_RSSI(buf) * (data->hop_count + 1 ) + rx->rssi)/(data->hop_count + 2);
-			rreq_send(data, 1, rx->ctx.net_idx); /* To RREQ's destination */
+			rreq_send(data, 0, rx->ctx.net_idx); /* To RREQ's destination */
 			struct rwait_data *temp; /* Dummy struct */
 			entry_data->hop_count = entry -> hop_count;
 			rwait_send(data,entry_data,temp,rx,false); /* To RREQ's originator */

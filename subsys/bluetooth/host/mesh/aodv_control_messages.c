@@ -106,7 +106,7 @@ static void ring_search_timer(struct k_timer *timer_id);
 static int rrep_send(struct rrep_data *RREP_msg,u16_t net_idx, u16_t dst );
 static int rrep_rwait_list_create_entry(struct rrep_rwait_list_entry *entry_data);
 static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_entry *destination_entry,
-						struct rwait_data rwait_data, struct bt_mesh_net_rx* rx, bool relay);
+						struct rwait_data *rwait_data, struct bt_mesh_net_rx* rx, bool relay);
 static int destination_list_create_entry(struct destination_list_entry **entry_location,sys_slist_t *destination_list);
 static void destination_list_delete_entry(struct destination_list_entry *entry, sys_slist_t *destination_list );
 /*
@@ -382,19 +382,20 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			struct bt_mesh_route_entry *entry_data;
 			if(bt_mesh_create_entry_invalid_with_cb(&entry_data, rreq_recv_cb))
 			{
-			entry_data->source_address                 = data->destination_address;
-			entry_data->destination_address            = data->source_address;
-			entry_data->destination_sequence_number    = data->source_sequence_number;
-			entry_data->next_hop                       = data->next_hop;
-			entry_data->source_number_of_elements      = bt_mesh_elem_count();
-			entry_data->destination_number_of_elements = data->source_number_of_elements;
-			entry_data->hop_count                      = data->hop_count;
-			entry_data->rssi 													 = data-> rssi;
-			entry_data->net_idx 											 = rx -> ctx.net_idx;
-			return 0;
+				entry_data->source_address                 = data->destination_address;
+				entry_data->destination_address            = data->source_address;
+				entry_data->destination_sequence_number    = data->source_sequence_number;
+				entry_data->next_hop                       = data->next_hop;
+				entry_data->source_number_of_elements      = bt_mesh_elem_count();
+				entry_data->destination_number_of_elements = data->source_number_of_elements;
+				entry_data->hop_count                      = data->hop_count;
+				entry_data->rssi 													 = data-> rssi;
+				entry_data->net_idx 											 = rx -> ctx.net_idx;
+				return 0;
 			}
-			else {
-				return false;
+			else 
+			{
+				return -ENOSR;
 			}
 
 		}
@@ -443,7 +444,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			data->hop_count = data->hop_count + 1;
 			data->rssi=(RREQ_GET_RSSI(buf) * (data->hop_count + 1 ) + rx->rssi)/(data->hop_count + 2);
 			rreq_send(data, 1, rx->ctx.net_idx); /* To RREQ's destination */
-			struct rwait_data temp; /* Dummy struct */
+			struct rwait_data *temp; /* Dummy struct */
 			entry_data->hop_count = entry -> hop_count;
 			rwait_send(data,entry_data,temp,rx,false); /* To RREQ's originator */
 		}
@@ -473,7 +474,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			{
 				return -ENOSR;
 			}
-			data->next_hop = data->next_hop + 1;
+			data->hop_count = data->hop_count + 1;
 			/* Relay the received RREQ */
 			return rreq_send(data, rx->ctx.recv_ttl - 1, rx->ctx.net_idx);
 		}
@@ -856,7 +857,7 @@ void bt_mesh_trans_rrep_rwait_list_init()
  *	@return N/A
  */
 static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_entry *destination_entry,
-	struct rwait_data rwait_data, struct bt_mesh_net_rx* rx, bool relay )
+	struct rwait_data* rwait_data, struct bt_mesh_net_rx* rx, bool relay)
 {
 	/* FIXME : pass rwait_data by reference */
 	u16_t rreq_net_idx 					 = rx->ctx.net_idx;
@@ -866,14 +867,15 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
 
 	struct bt_mesh_msg_ctx ctx;
 	struct bt_mesh_net_tx tx;
-	struct rwait_data data; /* Stores RWAIT data */
+	struct rwait_data temp; /* Stores RWAIT data */
+	struct rwait_data *data=&temp; /* Stores RWAIT data */
 
 	if (!relay)
 	{
-		data.destination_address = destination_address;
-		data.source_address = source_address;
-		data.source_sequence_number = source_sequence_number;
-		data.hop_count = destination_entry->hop_count;
+		data->destination_address = destination_address;
+		data->source_address = source_address;
+		data->source_sequence_number = source_sequence_number;
+		data->hop_count = destination_entry->hop_count;
 
 		ctx.net_idx  = rreq_net_idx;
 		ctx.app_idx  = BT_MESH_KEY_UNUSED;
@@ -895,10 +897,10 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
 	struct net_buf_simple *sdu = NET_BUF_SIMPLE(BT_MESH_TX_SDU_MAX);
 	net_buf_simple_init(sdu, 0);
 	net_buf_simple_add_u8(sdu, TRANS_CTL_OP_RWAIT);
-	net_buf_simple_add_le16(sdu, data.destination_address);
-	net_buf_simple_add_le16(sdu, data.source_address);
-	net_buf_simple_add_le32(sdu, data.source_sequence_number);
-	net_buf_simple_add_u8(sdu, data.hop_count);
+	net_buf_simple_add_le16(sdu, data->destination_address);
+	net_buf_simple_add_le16(sdu, data->source_address);
+	net_buf_simple_add_le32(sdu, data->source_sequence_number);
+	net_buf_simple_add_u8(sdu, data->hop_count);
 
 	if (!bt_mesh_is_provisioned()) {
 		BT_ERR("Local node is not yet provisioned");
@@ -916,7 +918,7 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
 	}
 
 	BT_DBG("source_address 0x%04x Destination Address 0x%04x Hop Count 0x%01x",
-	 data.source_address, data.destination_address,data.hop_count);
+	 data->source_address, data->destination_address,data->hop_count);
 
 
 	bt_mesh_ctl_send(&tx, TRANS_CTL_OP_RWAIT, sdu->data,sdu->len, NULL, NULL, NULL);
@@ -983,15 +985,18 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 		if (!bt_mesh_search_invalid_destination(rx->ctx.addr, rx->dst,rx->ctx.net_idx, &temp))
 		{
 			/* FIXME: remove the struct */
+
+			/*
 			struct rwait_data send_data = {
 				.destination_address 		= data->destination_address,
 				.source_address 				= data->source_address,
 				.source_sequence_number = data->source_sequence_number,
 				.hop_count 							= data->hop_count,
-			};
-			rwait_send(NULL,NULL,send_data, rx, true);
+			};*/
+			rwait_send(NULL,NULL,data, rx, true);
 		}
-		else {
+		else
+		{
 			BT_DBG("RWait has been dropped");
 		}
 	}

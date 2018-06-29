@@ -26,7 +26,7 @@
 #define ALLIGN 4
 #define QSIZE 1000 //XXX
 #define AGGREGATION_PRIORITY 5
-#define AGGREGATION_INTERVAL 20 *1000 //in ms
+#define AGGREGATION_INTERVAL 10 *1000 //in ms
 #define NODES_NUM					3
 /*For Provisioning and Configurations*/
 
@@ -53,6 +53,7 @@ static u32_t seq;
 static u16_t primary_addr;
 static u16_t primary_net_idx;
 struct k_timer aggregation_timer;
+unsigned int bytes_recvd=0;
 //u8_t	sensor_state[2];
 struct sensors{
 	u16_t unicast;
@@ -226,12 +227,10 @@ static void sen_status(struct bt_mesh_model *model,
 			  struct net_buf_simple *buf)
 {
 	struct sensors recvd_data;
-	//TODO: change the method
 	printk("[GUI] %04x-endE2E\n",ctx->addr);
-
 	//overhead_data(buf->len);
 	printk("[GUI] %04x-PktActual-%d\n",ctx->addr,buf->len);
-
+	bytes_recvd+=buf->len;
 	/*skipping the formalities, assuming we know format, size and did ID mapping*/
 net_buf_simple_pull_le16(buf);
 recvd_data.temp = net_buf_simple_pull_le16(buf);
@@ -323,6 +322,9 @@ void aggregator()
 	{
 		k_sem_take(&sem, K_FOREVER);
 		/*reads data from Queue and */
+
+		printk("[GUI] %04x-Throughput-%i\n",NODE_ADDR,((bytes_recvd*100)/(AGGREGATION_INTERVAL/1000)));
+		bytes_recvd=0;
 		msg_num= k_msgq_num_used_get(&msgQ);
 		if(!msg_num)
 				{

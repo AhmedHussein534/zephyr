@@ -293,7 +293,7 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 	{
 		case 0:
 		printk("[GUI] starting Publishing \n");
-		pub.period=0b01000111;
+		pub.period=0b01000010;
 		//pub.period = ((0x00<<6)+0x05);
 		printk("Period is 0x%04x \n",pub.period );
 		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
@@ -309,7 +309,7 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 
 		case 2:
 		printk("Button 3 pressed - INC \n");
-		if ((pub.period & BIT_MASK(6))<=0x3d)
+		if ((pub.period & BIT_MASK(6))<=0x3e)
 				pub.period ++;
 		printk("Period is 0x%04x INC \n",pub.period );
 		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
@@ -317,7 +317,7 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 
 		case 3:
 		printk("Button 4 pressed - DEC \n");
-		if ((pub.period & BIT_MASK(6))>=0x02)
+		if ((pub.period & BIT_MASK(6))>=0x01)
 				pub.period --;
 		printk("Period is 0x%04x DEC \n",pub.period );
 		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
@@ -443,7 +443,7 @@ static const struct bt_mesh_prov prov = {
 	pub.addr = 0x0001;
 	pub.app_idx=app_idx;
 	pub.ttl = 0x07;
-	pub.period =((0x00<<6)+0x05);
+	pub.period =0b01000010;
 	printk("Configuration complete\n");
  }
 

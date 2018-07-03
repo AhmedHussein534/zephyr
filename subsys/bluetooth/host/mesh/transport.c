@@ -604,7 +604,8 @@ static int sdu_recv(struct bt_mesh_net_rx *rx, u8_t hdr, u8_t aszmic,
 {
 	/* _GUI_ */
 	if (!(rx->ctx.addr==bt_mesh_primary_addr()))
-					printk("\n[GUI] %04x-Data-%04x\n",rx->ctx.addr, bt_mesh_primary_addr());
+		printk("\n[GUI] %04x-Data-%04x\n",rx->ctx.addr, bt_mesh_primary_addr());
+	
 	NET_BUF_SIMPLE_DEFINE(sdu, CONFIG_BT_MESH_RX_SDU_MAX - 4);
 	u8_t *ad;
 	u16_t i;
@@ -1016,15 +1017,6 @@ int bt_mesh_ctl_send(struct bt_mesh_net_tx *tx, u8_t ctl_op, void *data,
 {
 	printk("\n\n<<<<bt_mesh_ctl_send>>>\n");
 	struct net_buf *buf;
-
-	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
-	{
-		if(ctl_op==0x0a)
-		{
-			tx->ctx->send_ttl=0;
-			printk("sending heartbeat\n");
-		}
-	}
 
 	BT_DBG("src 0x%04x dst 0x%04x ttl 0x%02x ctl 0x%02x", tx->src,
 	       tx->ctx->addr, tx->ctx->send_ttl, ctl_op);
@@ -1496,10 +1488,7 @@ found_rx:
 		 net_rx->ctx.send_ttl, seq_auth, rx->block, rx->obo);
 
 	if (net_rx->ctl) {
-		// FIXME: Other control messages may not pass through the following section.
 		err = ctl_recv(net_rx, *hdr, &rx->buf, seq_auth);
-		//u8_t opcode = net_buf_simple_pull_u8(&rx->buf);
-		//err = ctl_recv(net_rx,opcode , &rx->buf, seq_auth);
 	}
 	else {
 		err = sdu_recv(net_rx, *hdr, ASZMIC(hdr), &rx->buf);

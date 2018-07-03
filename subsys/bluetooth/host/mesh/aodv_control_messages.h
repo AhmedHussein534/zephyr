@@ -2,7 +2,7 @@
  *  @brief Rouitng Control Messages File
  *
  *  Bluetooth routing control messages following AODV protocol.
- *	The file contains RREQ, RREP and RWAIT data and functions.
+ *	The file contains RREQ, RREP, RWAIT and RERR data and functions.
  *  @bug No known bugs.
  */
 /* DEFINITIONS */
@@ -50,15 +50,24 @@
 /* Hello Message DEFINITIONS */
 #define HELLO_MSG_LIFETIME  K_SECONDS(40)
 
+/*Error Messages*/
 #define ELOCAL 139 /* Source address is a local element*/
 #define ENORREQ 140 /* RREP interval has expired*/
 #define ENORREP 141 /* RREP interval has expired*/
 #define ENODRREQ 142 /* Directive RREQ is dropped*/
-#define ENORREQSENT 143 /* Directive RREQ is dropped*/
+#define ENORREQSENT 143 /* Repetitive RREQ is dropped*/
 
 
+/**
+ *	@brief Ring search timer to opt out of ring search and
+ * 				 increase the TTL value
+ */
+struct ring_search_flag_timer {
+	struct k_timer ring_timer;
+	/** When the timer expires, this flag is set */
+	bool ring_flag;
+};
 /* DATA */
-
 /** @brief RREQ data for transmission or reception. Contains the transport layer
  *				 RREQ PDU and the network layer credentials.
  */
@@ -157,9 +166,6 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 /*RERR FUNCTIONS*/
 int bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
 void bt_mesh_trans_rerr_list_init();
-//void search_callback(struct bt_mesh_route_entry *entry1);//FIXME
-//bool is_empty_rerr_list(); //FIXME
 int hello_msg_list_create_entry(struct hello_msg_list_entry **entry_location);
 void view_hello_msg_list();
 void bt_mesh_trans_hello_msg_recv(u16_t src);
-void remove_neighbour(u16_t neighbour, u16_t net_idx);

@@ -104,15 +104,11 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 		.feat = 0,
 		.net_idx = net_idx,
 		};
-
 		bt_mesh_cfg_hb_pub_set(net_idx, addr, &pub, NULL);
 		printk("Publishing heartbeat messages\n");
-
 		bt_mesh_trans_rrep_rwait_list_init();
 		bt_mesh_routing_table_init();
 		bt_mesh_trans_rerr_list_init();
-
-
 	}
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PROV)) {

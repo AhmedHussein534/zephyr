@@ -19,7 +19,7 @@ sys_slist_t invalid_rerr_list;
 
 K_SEM_DEFINE(valid_list_sem, 1, 1); 	/* Binary semaphore for valid list */
 K_SEM_DEFINE(invalid_list_sem, 1, 1); /* Binary semaphore for invalid list */
-K_SEM_DEFINE(invalid_rerr_list_sem, 1, 1); /* Binary semaphore for invalid list */
+K_SEM_DEFINE(invalid_rerr_list_sem, 1, 1); /* Binary semaphore for invalid rerr list */
 struct k_mem_slab routing_table_slab; /* Memory slab for all entries */
 K_MEM_SLAB_DEFINE(routing_table_slab, ENTRY_SIZE, NUMBER_OF_ENTRIES, ALLIGNED);
 
@@ -55,8 +55,6 @@ void bt_mesh_routing_table_init()
  		printk("Memory Allocation timeout \n");
  		return false;
  	}
-
-
  	/* Start the lifetime timer */
  	k_timer_init (&(*entry_location)->lifetime, bt_mesh_delete_entry_valid, NULL);
  	k_timer_start(&(*entry_location)->lifetime, LIFETIME, 0);
@@ -110,7 +108,6 @@ void bt_mesh_routing_table_init()
  		printk("Memory Allocation timeout \n");
  		return false;
  	}
-
  	/* Start the lifetime timer */
  	k_timer_init (&(*entry_location)->lifetime, bt_mesh_delete_entry_invalid_rerr, NULL);
  	k_timer_start(&(*entry_location)->lifetime, LIFETIME, 0);
@@ -177,7 +174,6 @@ bool bt_mesh_search_valid_destination(u16_t source_address, u16_t destination_ad
 			*entry = entry1;
 			return true;
 		}
-
 	}
 	k_sem_give(&valid_list_sem);
 	return false;
@@ -207,7 +203,6 @@ bool bt_mesh_search_valid_destination_without_source(u16_t destination_address, 
 			*entry = entry1;
 			return true;
 		}
-
 	}
 	k_sem_give(&valid_list_sem);
 	return false;
@@ -386,7 +381,6 @@ bool bt_mesh_search_valid_destination_with_net_idx(u16_t source_address, u16_t d
 bool bt_mesh_search_valid_next_hop_with_net_idx(u16_t next_hop_address, u16_t net_idx, struct bt_mesh_route_entry **entry)
 {
 	struct bt_mesh_route_entry *entry1 = NULL;
-
 	k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry1, node)
 	{
@@ -514,7 +508,6 @@ void bt_mesh_refresh_lifetime_valid(struct bt_mesh_route_entry *entry)
 	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_valid, NULL);
 	k_timer_start(&entry->lifetime, LIFETIME, 0);
 	struct bt_mesh_route_entry* reverse_entry;
-	printk("CHECK HERE!\n");
 	if (bt_mesh_search_valid_destination(entry->destination_address,entry->source_address,entry->net_idx,&reverse_entry))
 	{
 		printk("two directional entry found\n");
@@ -559,25 +552,24 @@ void bt_mesh_refresh_lifetime_invalid(struct bt_mesh_route_entry *entry)
 */
 bool bt_mesh_validate_route(struct bt_mesh_route_entry *entry)
 {
-		if (entry == NULL )
-		{
-		 return false;
-		}
-		k_timer_stop(&entry->lifetime);
-		k_sem_take(&invalid_list_sem, K_FOREVER); /*take semaphore */
-		sys_slist_find_and_remove(&invalid_list, &entry->node);
-		k_sem_give(&invalid_list_sem);
+	if (entry == NULL )
+	{
+		return false;
+	}
+	k_timer_stop(&entry->lifetime);
+	k_sem_take(&invalid_list_sem, K_FOREVER); /*take semaphore */
+	sys_slist_find_and_remove(&invalid_list, &entry->node);
+	k_sem_give(&invalid_list_sem);
 
-		k_sem_take(&valid_list_sem, K_FOREVER);         /*take semaphore */
-		sys_slist_append(&valid_list, &entry->node);    /*insert node in linkedlist */
-		k_sem_give(&valid_list_sem);
+	k_sem_take(&valid_list_sem, K_FOREVER);         /*take semaphore */
+	sys_slist_append(&valid_list, &entry->node);    /*insert node in linkedlist */
+	k_sem_give(&valid_list_sem);
 
-		struct k_timer temp;
-		entry->lifetime = temp;
-		k_timer_init(&entry->lifetime, bt_mesh_delete_entry_valid, NULL);
-		k_timer_start(&entry->lifetime, LIFETIME, 0);
-		// printk("Timer STATUS=%d \n)",k_timer_status_get(&entry->lifetime));
-		return true;
+	struct k_timer temp;
+	entry->lifetime = temp;
+	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_valid, NULL);
+	k_timer_start(&entry->lifetime, LIFETIME, 0);
+	return true;
 }
 
 
@@ -585,54 +577,52 @@ bool bt_mesh_validate_route(struct bt_mesh_route_entry *entry)
 *	@brief Inalidate route having passed source and destination addresses
 *
 *	@param source_address
-* @param destination_address
+* 	@param destination_address
 *
 *	@return True when entry is found and refreshed, false otherwise.
 */
 bool bt_mesh_invalidate_route(struct bt_mesh_route_entry *entry)
 {
-	 	if (entry == NULL )
-	 	{
-		 return false;
-	 	}
-		k_timer_stop(&entry->lifetime);
-		k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
-		sys_slist_find_and_remove(&valid_list, &entry->node);
-		k_sem_give(&valid_list_sem);
+ 	if (entry == NULL )
+ 	{
+		return false;
+ 	}
+	k_timer_stop(&entry->lifetime);
+	k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
+	sys_slist_find_and_remove(&valid_list, &entry->node);
+	k_sem_give(&valid_list_sem);
 
-		k_sem_take(&invalid_list_sem, K_FOREVER);       /*take semaphore */
-		sys_slist_append(&invalid_list, &entry->node);  /*insert node in linkedlist */
-		k_sem_give(&invalid_list_sem);
+	k_sem_take(&invalid_list_sem, K_FOREVER);       /*take semaphore */
+	sys_slist_append(&invalid_list, &entry->node);  /*insert node in linkedlist */
+	k_sem_give(&invalid_list_sem);
 
-		struct k_timer temp;
-		entry->lifetime = temp;
-		k_timer_init(&entry->lifetime, bt_mesh_delete_entry_invalid, NULL);
-		k_timer_start(&entry->lifetime, LIFETIME, 0);
-		// printk("Timer STATUS=%d \n)",k_timer_status_get(&entry->lifetime));
-		return true;
+	struct k_timer temp;
+	entry->lifetime = temp;
+	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_invalid, NULL);
+	k_timer_start(&entry->lifetime, LIFETIME, 0);
+	return true;
 }
 
 bool bt_mesh_invalidate_rerr_route(struct bt_mesh_route_entry *entry)
 {
-	 	if (entry == NULL )
-	 	{
-		 return false;
-	 	}
-		k_timer_stop(&entry->lifetime);
-		k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
-		sys_slist_find_and_remove(&valid_list, &entry->node);
-		k_sem_give(&valid_list_sem);
+ 	if (entry == NULL )
+ 	{
+		return false;
+ 	}
+	k_timer_stop(&entry->lifetime);
+	k_sem_take(&valid_list_sem, K_FOREVER); /*take semaphore */
+	sys_slist_find_and_remove(&valid_list, &entry->node);
+	k_sem_give(&valid_list_sem);
 
-		k_sem_take(&invalid_rerr_list_sem, K_FOREVER);       /*take semaphore */
-		sys_slist_append(&invalid_rerr_list, &entry->node);  /*insert node in linkedlist */
-		k_sem_give(&invalid_rerr_list_sem);
+	k_sem_take(&invalid_rerr_list_sem, K_FOREVER);       /*take semaphore */
+	sys_slist_append(&invalid_rerr_list, &entry->node);  /*insert node in linkedlist */
+	k_sem_give(&invalid_rerr_list_sem);
 
-		struct k_timer temp;
-		entry->lifetime = temp;
-		k_timer_init(&entry->lifetime, bt_mesh_delete_entry_invalid_rerr, NULL);
-		k_timer_start(&entry->lifetime, LIFETIME, 0);
-		// printk("Timer STATUS=%d \n)",k_timer_status_get(&entry->lifetime));
-		return true;
+	struct k_timer temp;
+	entry->lifetime = temp;
+	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_invalid_rerr, NULL);
+	k_timer_start(&entry->lifetime, LIFETIME, 0);
+	return true;
 }
 
 
@@ -647,7 +637,6 @@ void view_valid_list()
 	k_sem_take(&valid_list_sem, K_FOREVER);
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry, node){
 		printk("\x1b[32mValid List:source address=%04x,destination address=%04x,nexthop address=%04x\x1b[0m \n", entry->source_address, entry->destination_address,entry->next_hop);
-		//printk("Valid List:hop count=%01x \n", entry->hop_count);
 	}
 	k_sem_give(&valid_list_sem);
 }

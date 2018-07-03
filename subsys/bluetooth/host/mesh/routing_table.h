@@ -68,5 +68,6 @@ bool bt_mesh_invalidate_route(struct bt_mesh_route_entry *entry);
 bool bt_mesh_invalidate_rerr_route(struct bt_mesh_route_entry *entry);
 
 /* Test Functions */
- void view_valid_list();
+void view_valid_list();
 void view_invalid_list(); 
+void view_invalid_rerr_list();

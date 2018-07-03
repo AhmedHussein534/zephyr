@@ -164,7 +164,7 @@ int periodic_update (struct bt_mesh_model *mod)
 	bt_mesh_model_msg_init(sensor_pub_srv.msg, BT_MESH_MODEL_OP_SENSOR_STATUS);
 
 	/*Temp_simulation*/
-	net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+TEMP_ID));
+	net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<3)+TEMP_ID));
 	if (sensors[0]==250 || sensors[0] ==150)
 		dir[0] = !dir[0];
 
@@ -173,10 +173,10 @@ int periodic_update (struct bt_mesh_model *mod)
 	else
 			sensors[0]--;
 	net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[0]);
-	printk("TVL: %04x,DATA: %i\n",((0b0<<7)+(0b1000<<6)+TEMP_ID), sensors[0]);
+	printk("TVL: %04x,DATA: %i\n",((0b0<<7)+(0b1000<<3)+TEMP_ID), sensors[0]);
 
 	/*Pressure simulation*/
-	net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+PRESSURE_ID));
+	net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<3)+PRESSURE_ID));
 	if (sensors[1]==0 || sensors[1] ==200)
 	dir[1] = !dir[1];
 	if (dir[1])
@@ -184,17 +184,14 @@ int periodic_update (struct bt_mesh_model *mod)
 	else
 			sensors[1]-=5;
 	net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[1]);
-	printk("TVL: %04x,DATA: %i\n",((0b0<<7)+(0b1000<<6)+PRESSURE_ID), sensors[1]);
-
-	//net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+X_ID));
+	printk("TVL: %04x,DATA: %i\n",((0b0<<7)+(0b1000<<3)+PRESSURE_ID), sensors[1]);
 
 	/*X simulation*/
-
-	     //sensors[2]=(rand()%(255+1));
+	//net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<3)+X_ID)); //uncomment=>12 bytes
+	//sensors[2]=(rand()%(255+1));
 	net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[2]);
-	printk("TVL: %04x,DATA: %04x\n",((0b0<<7)+(0b1000<<6)+X_ID), sensors[2]);
+	printk("TVL: %04x,DATA: %04x\n",((0b0<<7)+(0b1000<<3)+X_ID), sensors[2]);
 	printk("[GUI] %04x-startE2E\n",NODE_ADDR);
-
 	return 0;
 }
 
@@ -347,14 +344,14 @@ static void sen_get(struct bt_mesh_model *model,
 	NET_BUF_SIMPLE_DEFINE(msg, 2 + DATA_LEN + 4);
 	bt_mesh_model_msg_init(&msg, BT_MESH_MODEL_OP_SENSOR_STATUS);
 		/*Temp_simulation*/
-		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+TEMP_ID));
+		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<3)+TEMP_ID));
 		net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[0]);
 		/*Pressure simulation*/
-		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+PRESSURE_ID));
+		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<3)+PRESSURE_ID));
 		net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[1]);
 		/*X simulation*/
 
-		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<6)+X_ID));
+		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<3)+X_ID));
 		net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[2]);
 
 	if (bt_mesh_model_send(model, ctx, &msg, NULL, NULL)) {

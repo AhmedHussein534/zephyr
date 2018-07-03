@@ -351,7 +351,7 @@ static void sen_get(struct bt_mesh_model *model,
 		net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[1]);
 		/*X simulation*/
 
-		net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<3)+X_ID));
+		//net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<3)+X_ID));
 		net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[2]);
 
 	if (bt_mesh_model_send(model, ctx, &msg, NULL, NULL)) {

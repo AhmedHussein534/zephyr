@@ -236,7 +236,7 @@ net_buf_simple_pull_le16(buf);
 recvd_data.temp = net_buf_simple_pull_le16(buf);
 net_buf_simple_pull_le16(buf);
 recvd_data.pressure = net_buf_simple_pull_le16(buf);
-net_buf_simple_pull_le16(buf);
+//net_buf_simple_pull_le16(buf);
 recvd_data.X = net_buf_simple_pull_le16(buf);
 recvd_data.unicast = ctx->addr;
 printk("[%04x] status: Temperature: %i, Pressure: %i \n",recvd_data.unicast,recvd_data.temp,recvd_data.pressure);

@@ -10,6 +10,15 @@
 #include <string.h>
 #include "routing_table.h"
 
+/*DEFINITIONS*/
+#define NUMBER_OF_ENTRIES 20    /* Maximum number of entries in the table */
+#define ALLIGNED 4              /* Memory Allignment */
+#define ALLOCATION_INTERVAL 100 /* maximum time taken to allocate from slab */
+#define ENTRY_SIZE sizeof(struct bt_mesh_route_entry)
+#define LIFETIME  K_SECONDS(120)
+#define RREQ_INTERVAL_WAIT K_MSEC(1000)
+
+
 /** @brief Linked list holding pointers to the valid entries of the routing tables. */
 sys_slist_t valid_list;
 /** @brief Linked list holding pointers to the invalid entries of the routing tables. */

@@ -33,7 +33,6 @@
 #include "foundation.h"
 #include "proxy.h"
 #include "mesh.h"
-#include "routing_table.h"
 #include "aodv_control_messages.h"
 
 
@@ -106,9 +105,6 @@ int bt_mesh_provision(const u8_t net_key[16], u16_t net_idx,
 		};
 		bt_mesh_cfg_hb_pub_set(net_idx, addr, &pub, NULL);
 		printk("Publishing heartbeat messages\n");
-		bt_mesh_trans_rrep_rwait_list_init();
-		bt_mesh_routing_table_init();
-		bt_mesh_trans_rerr_list_init();
 	}
 
 	if (IS_ENABLED(CONFIG_BT_MESH_PROV)) {
@@ -246,6 +242,8 @@ int bt_mesh_init(const struct bt_mesh_prov *prov,
 	if (IS_ENABLED(CONFIG_BT_MESH_PROXY)) {
 		bt_mesh_proxy_init();
 	}
-
+	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING)) {
+	bt_mesh_trans_routing_init();
+	}
 	return 0;
 }

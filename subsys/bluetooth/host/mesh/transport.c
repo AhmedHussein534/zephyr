@@ -108,6 +108,7 @@ static u8_t __noinit seg_rx_buf_data[(CONFIG_BT_MESH_RX_SEG_MSG_COUNT *
 static u16_t hb_sub_dst = BT_MESH_ADDR_UNASSIGNED;
 
 
+
 void bt_mesh_set_hb_sub_dst(u16_t addr)
 {
 	hb_sub_dst = addr;
@@ -468,11 +469,12 @@ int bt_mesh_trans_send(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 			{
 				printk("Initiating Ring Search\n");
 				err=bt_mesh_trans_ring_search(tx);
-				if(err)
+				err=bt_mesh_trans_ring_buf_alloc(tx,msg,cb,cb_data);
+				if(!err)
 				{
-					BT_ERR("Destination not found\n");
-					return err;
+					BT_DBG("Out of ring search sdu buffers");
 				}
+				return err;
 			}
 		}
 		else
@@ -605,7 +607,7 @@ static int sdu_recv(struct bt_mesh_net_rx *rx, u8_t hdr, u8_t aszmic,
 	/* _GUI_ */
 	if (!(rx->ctx.addr==bt_mesh_primary_addr()))
 		printk("\n[GUI] %04x-Data-%04x\n",rx->ctx.addr, bt_mesh_primary_addr());
-	
+
 	NET_BUF_SIMPLE_DEFINE(sdu, CONFIG_BT_MESH_RX_SDU_MAX - 4);
 	u8_t *ad;
 	u16_t i;
@@ -822,7 +824,7 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 		if(!bt_mesh_elem_find(rx->ctx.addr))
 		{
 			printk("HB:recv is %04x RSSI is %d ",rx->ctx.addr,rx->rssi);
-			bt_mesh_trans_hello_msg_recv(rx->ctx.addr);			
+			bt_mesh_trans_hello_msg_recv(rx->ctx.addr);
 		}
 	}
 	bt_mesh_heartbeat(rx->ctx.addr, rx->dst, hops, feat);
@@ -838,7 +840,7 @@ static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
 		//for 0x0003
-		
+
 		if(bt_mesh_primary_addr() == 0x0003)
 		{
 			if (rx->ctx.addr ==0x0004 || rx->ctx.addr ==0x0005 || rx->ctx.addr ==0x0001 )
@@ -855,7 +857,7 @@ static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 				printk("dropped ctl msg of OpCode 0x%02x from 0x%04x \n", ctl_op,  rx->ctx.addr );
 				return -EINVAL;
 			}
-		}		
+		}
 		else if(bt_mesh_primary_addr() == 0x0004)
 		{
 			if (rx->ctx.addr ==0x0003 )

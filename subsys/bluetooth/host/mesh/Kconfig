@@ -386,6 +386,14 @@ config BT_MESH_ROUTING_MAX_RING_TTL
 	help
 	  Use this option to set the Max TTL value for ring search.
 
+config CONFIG_BT_MESH_RING_BUF_COUNT
+	int "Max number of sdu buffers used during ring search"
+	range 0 1023
+	default 4
+	help
+	  Use this option to set the Max sdu buffers during ring search.
+
+
 config BT_MESH_ROUTING_RREQ_WAIT
 	int "Destination RREQ waiting interval in ms"
 	range 0 1023

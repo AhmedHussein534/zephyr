@@ -6,13 +6,6 @@
 
  /* -- Includes -- */
 
-/*DEFINITIONS*/
-#define NUMBER_OF_ENTRIES 20    /* Maximum number of entries in the table */
-#define ALLIGNED 4              /* Memory Allignment */
-#define ALLOCATION_INTERVAL 100 /* maximum time taken to allocate from slab */
-#define ENTRY_SIZE sizeof(struct bt_mesh_route_entry)
-#define LIFETIME  K_SECONDS(120)
-#define RREQ_INTERVAL_WAIT K_MSEC(1000)
 
 /** @brief Entry data of routing table */
 struct bt_mesh_route_entry {
@@ -69,5 +62,5 @@ bool bt_mesh_invalidate_rerr_route(struct bt_mesh_route_entry *entry);
 
 /* Test Functions */
 void view_valid_list();
-void view_invalid_list(); 
+void view_invalid_list();
 void view_invalid_rerr_list();

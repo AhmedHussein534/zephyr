@@ -26,7 +26,7 @@
 //#include <stdlib.h>
 
 #define CID_INTEL 	 0x0002   /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR  	 0x0003   /*Unicast Address*/
+#define NODE_ADDR  	 0x0004   /*Unicast Address*/
 #define GROUP_ADDR 	 0x9999  /*The Address to use for pub and sub*/
 #define START     	 0x20      /* Start of dummy data */
 #define DATA_LEN   	 12       /*length of status (more than 8 == segmented) */
@@ -176,6 +176,7 @@ int periodic_update (struct bt_mesh_model *mod)
 	printk("TVL: %04x,DATA: %i\n",((0b0<<7)+(0b1000<<3)+TEMP_ID), sensors[0]);
 
 	/*Pressure simulation*/
+
 	net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<3)+PRESSURE_ID));
 	if (sensors[1]==0 || sensors[1] ==200)
 	dir[1] = !dir[1];
@@ -189,9 +190,11 @@ int periodic_update (struct bt_mesh_model *mod)
 	/*X simulation*/
 	//net_buf_simple_add_le16(sensor_pub_srv.msg,((0b0<<7)+(0b1000<<3)+X_ID)); //uncomment=>12 bytes
 	//sensors[2]=(rand()%(255+1));
+
 	net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[2]);
 	printk("TVL: %04x,DATA: %04x\n",((0b0<<7)+(0b1000<<3)+X_ID), sensors[2]);
 	printk("[GUI] %04x-startE2E\n",NODE_ADDR);
+	
 	return 0;
 }
 
@@ -291,7 +294,6 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 		case 0:
 		printk("[GUI] starting Publishing \n");
 		pub.period=0b01000010;
-		//pub.period = ((0x00<<6)+0x05);
 		printk("Period is 0x%04x \n",pub.period );
 		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
 		break;

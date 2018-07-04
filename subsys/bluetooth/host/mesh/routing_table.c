@@ -10,6 +10,9 @@
 #include <string.h>
 #include "routing_table.h"
 
+#define BT_DBG_ENABLED IS_ENABLED(CONFIG_BT_MESH_DEBUG_ROUTING)
+#include "common/log.h"
+
 /*DEFINITIONS*/
 #define NUMBER_OF_ENTRIES 20    /* Maximum number of entries in the table */
 #define ALLIGNED 4              /* Memory Allignment */
@@ -61,7 +64,7 @@ void bt_mesh_routing_table_init()
  		sys_slist_append(&valid_list, &(*entry_location)->node);   /*insert node in linkedlist */
  		k_sem_give(&valid_list_sem);
  	} else    {
- 		printk("Memory Allocation timeout \n");
+ 		BT_ERR("Memory Allocation timeout");
  		return false;
  	}
  	/* Start the lifetime timer */
@@ -87,7 +90,7 @@ void bt_mesh_routing_table_init()
  		sys_slist_append(&invalid_list, &(*entry_location)->node); /*insert node in linkedlist */
  		k_sem_give(&invalid_list_sem);
  	} else    {
- 		printk("Memory Allocation timeout \n");
+ 		BT_ERR("Memory Allocation timeout");
  		return false;
  	}
 
@@ -114,7 +117,7 @@ void bt_mesh_routing_table_init()
  		sys_slist_append(&invalid_rerr_list, &(*entry_location)->node); /*insert node in linkedlist */
  		k_sem_give(&invalid_rerr_list_sem);
  	} else    {
- 		printk("Memory Allocation timeout \n");
+ 		BT_ERR("Memory Allocation timeout");
  		return false;
  	}
  	/* Start the lifetime timer */
@@ -143,7 +146,7 @@ void bt_mesh_routing_table_init()
  		sys_slist_append(&invalid_list, &(*entry_location)->node); /*insert node in linkedlist */
  		k_sem_give(&invalid_list_sem);
  	} else    {
- 		printk("Memory Allocation timeout \n");
+ 		BT_ERR("Memory Allocation timeout");
  		return false;
  	}
  	/* Start the lifetime timer */
@@ -448,7 +451,7 @@ void bt_mesh_delete_entry_link_drop(struct bt_mesh_route_entry *deleted_entry)
 	sys_slist_find_and_remove(&valid_list, &deleted_entry->node);   /*delete node from linked list */
 	k_sem_give(&valid_list_sem);                            /*return semaphore */
 	k_mem_slab_free(&routing_table_slab, (void **)&deleted_entry);  /*free space in slab*/
-	printk("valid Entry Deleted \n");
+	BT_DBG("valid Entry Deleted");
 }
 
 /**
@@ -464,7 +467,7 @@ void bt_mesh_delete_entry_valid(struct k_timer *timer_id)
 	sys_slist_find_and_remove(&valid_list, &entry->node);   /*delete node from linked list */
 	k_sem_give(&valid_list_sem);                            /*return semaphore */
 	k_mem_slab_free(&routing_table_slab, (void **)&entry);  /*free space in slab*/
-	printk("valid Entry Deleted \n");
+	BT_DBG("valid Entry Deleted");
 }
 
 /**
@@ -480,7 +483,7 @@ void bt_mesh_delete_entry_invalid(struct k_timer *timer_id)
 	sys_slist_find_and_remove(&invalid_list, &entry->node); /*delete node from linked list */
 	k_sem_give(&invalid_list_sem);                          /*return semaphore */
 	k_mem_slab_free(&routing_table_slab, (void **)&entry);  /*free space in slab*/
-	printk("Invalid Entry Deleted \n");
+	BT_DBG("Invalid Entry Deleted");
 }
 
 
@@ -497,7 +500,7 @@ void bt_mesh_delete_entry_invalid_rerr(struct k_timer *timer_id)
 	sys_slist_find_and_remove(&invalid_rerr_list, &entry->node); /*delete node from linked list */
 	k_sem_give(&invalid_rerr_list_sem);                          /*return semaphore */
 	k_mem_slab_free(&routing_table_slab, (void **)&entry);  /*free space in slab*/
-	printk("Invalid rerr Entry Deleted \n");
+	BT_DBG("Invalid rerr Entry Deleted");
 }
 
 /* Refresh Functions */
@@ -519,16 +522,16 @@ void bt_mesh_refresh_lifetime_valid(struct bt_mesh_route_entry *entry)
 	struct bt_mesh_route_entry* reverse_entry;
 	if (bt_mesh_search_valid_destination(entry->destination_address,entry->source_address,entry->net_idx,&reverse_entry))
 	{
-		printk("two directional entry found\n");
+		BT_DBG("two directional entry found");
 		k_timer_stop(&reverse_entry->lifetime);
 		struct k_timer temp2;
 		reverse_entry->lifetime = temp2;
 		k_timer_init(&reverse_entry->lifetime, bt_mesh_delete_entry_valid, NULL);
 		k_timer_start(&reverse_entry->lifetime, LIFETIME, 0);
-		printk("Lifetime of valid entry refreshed bidrectional\n");
+		BT_DBG("Lifetime of valid entry refreshed bidrectional");
 	}
 	else {
-	printk("one directional entry updated\n");
+	BT_DBG("one directional entry updated");
   }
 }
 
@@ -546,7 +549,7 @@ void bt_mesh_refresh_lifetime_invalid(struct bt_mesh_route_entry *entry)
 	entry->lifetime = temp;
 	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_invalid, NULL);
 	k_timer_start(&entry->lifetime, LIFETIME, 0);
-	printk("Lifetime of invalid entry refreshed\n");
+	BT_DBG("Lifetime of invalid entry refreshed");
 }
 
 /* Miscellaneous */
@@ -639,13 +642,13 @@ bool bt_mesh_invalidate_rerr_route(struct bt_mesh_route_entry *entry)
 void view_valid_list()
 {
 	if (sys_slist_is_empty(&valid_list)) {
-		printk("Valid List is empty \n");
+		BT_DBG("Valid List is empty");
 		return;
 	}
 	struct bt_mesh_route_entry *entry = NULL;
 	k_sem_take(&valid_list_sem, K_FOREVER);
 	SYS_SLIST_FOR_EACH_CONTAINER(&valid_list, entry, node){
-		printk("\x1b[32mValid List:source address=%04x,destination address=%04x,nexthop address=%04x\x1b[0m \n", entry->source_address, entry->destination_address,entry->next_hop);
+		BT_DBG("\x1b[32mValid List:source address=%04x,destination address=%04x,nexthop address=%04x\x1b[0m", entry->source_address, entry->destination_address,entry->next_hop);
 	}
 	k_sem_give(&valid_list_sem);
 }
@@ -653,13 +656,13 @@ void view_valid_list()
 void view_invalid_list()
 {
 	if (sys_slist_is_empty(&invalid_list)) {
-		printk("Invalid List is empty \n");
+		BT_DBG("Invalid List is empty");
 		return;
 	}
 	struct bt_mesh_route_entry *entry = NULL;
 	k_sem_take(&invalid_list_sem, K_FOREVER);
 	SYS_SLIST_FOR_EACH_CONTAINER(&invalid_list, entry, node){
-		printk("\x1b[31mInvalid List:source address=%04x,destination address=%04x\x1b[0m\n", entry->source_address, entry->destination_address);
+		BT_DBG("\x1b[31mInvalid List:source address=%04x,destination address=%04x\x1b[0m", entry->source_address, entry->destination_address);
 	}
 	k_sem_give(&invalid_list_sem);
 }
@@ -667,13 +670,13 @@ void view_invalid_list()
 void view_invalid_rerr_list()
 {
 	if (sys_slist_is_empty(&invalid_rerr_list)) {
-		printk("Invalid rerr List is empty \n");
+		BT_DBG("Invalid rerr List is empty");
 		return;
 	}
 	struct bt_mesh_route_entry *entry = NULL;
 	k_sem_take(&invalid_rerr_list_sem, K_FOREVER);
 	SYS_SLIST_FOR_EACH_CONTAINER(&invalid_rerr_list, entry, node){
-		printk("\x1b[31mInvalid rerr List:source address=%04x,destination address=%04x\x1b[0m\n", entry->source_address, entry->destination_address);
+		BT_DBG("\x1b[31mInvalid rerr List:source address=%04x,destination address=%04x\x1b[0m", entry->source_address, entry->destination_address);
 	}
 	k_sem_give(&invalid_rerr_list_sem);
 }

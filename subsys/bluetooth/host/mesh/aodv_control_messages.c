@@ -291,8 +291,6 @@ static void overhead_control (unsigned int len)
  */
 static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< rreq_send >>>>>>>>>>>>>> \n\n");
-
 	/* Concatenate RREQ flags into 1 byte */
 	u8_t flags = data->G + (data->D << 1) + (data->U << 2) + (data->I << 3);
 	/* Default network layer next hop is to broadcast to all nodes */
@@ -311,22 +309,16 @@ static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
 	}
 	else if(data->I)
 	{
-		printk("received directive RREQ is dropped\n");
+		BT_DBG("received directive RREQ is dropped");
 		return -ENODRREQ;
 	}
-
-	printk("source_address 0x%04x destination_address 0x%04x next_hop 0x%04x",
-	 data->source_address, data->destination_address,data->next_hop);
-	printk("source_number_of_elements %04x hop_count %01x source_sequence_number %08x",
-			    data->source_number_of_elements, data->hop_count, data->source_sequence_number)	;
-	printk("destination_sequence_number  %08x ", data->destination_sequence_number);
 
 	BT_DBG("source_address 0x%04x destination_address 0x%04x next_hop 0x%04x",
 	 data->source_address, data->destination_address,data->next_hop);
 	BT_DBG("source_number_of_elements %04x hop_count %01x source_sequence_number %08x",
 			    data->source_number_of_elements, data->hop_count, data->source_sequence_number)	;
 	BT_DBG("destination_sequence_number  %08x ", data->destination_sequence_number);
-	BT_DBG("Directed RREQ is sent to  %04x ", network_next_hop);
+	BT_DBG("RREQ is sent to  %04x ", network_next_hop);
 
 	struct bt_mesh_msg_ctx ctx =
 	{
@@ -375,7 +367,6 @@ static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
  */
 static void rreq_recv_cb(struct k_timer *timer_id)
 {
-	printk("  <<<<<<<<<<<< rreq_recv_cb >>>>>>>>>>>>>> ");
 	/* TODO: ADD SEMAPHORE so this fn doesn't work with RREQ_RECEIVED */
 	/* Pull out the container of the timer to access the entry */
 	struct bt_mesh_route_entry *entry = CONTAINER_OF(timer_id, struct bt_mesh_route_entry, lifetime);
@@ -411,8 +402,6 @@ static void rreq_recv_cb(struct k_timer *timer_id)
  */
 int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_trans_rreq_recv >>>>>>>>>>>>>> \n\n");
-
 	/* _GUI_ */
 	printk("\n[GUI] %04x-RREQ-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
 	/* Dissect the received RREQ into fields */
@@ -440,26 +429,17 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 
 	if(data->hop_count==0)
 	{
-		printk("HB:recv as a RREQ  %04x RSSI is %d ",data->source_address,data->rssi);
+		BT_DBG("HB:recv as a RREQ  %04x RSSI is %d ",data->source_address,data->rssi);
 		bt_mesh_trans_hello_msg_recv(data->source_address);
 	}
 
 	overhead_control(buf->len);
 
-	printk("RREQ:source_address 0x%04x destination_address 0x%04x next_hop 0x%04x",
-	 data->source_address, data->destination_address,data->next_hop);
-	printk("RREQ:source_number_of_elements %04x hop_count %01x source_sequence_number %08x",
-		data->source_number_of_elements, data->hop_count, data->source_sequence_number);
-	printk("RREQ:destination_sequence_number  %08x ", data->destination_sequence_number);
-	printk("RREQ:RSSI average = %d",data->rssi);
-
-
-
 	BT_DBG("RREQ:source_address 0x%04x destination_address 0x%04x next_hop 0x%04x",
 	 data->source_address, data->destination_address,data->next_hop);
 	BT_DBG("RREQ:source_number_of_elements %04x hop_count %01x source_sequence_number %08x",
-		data->source_number_of_elements, data->hop_count, data->source_sequence_number)
-	BT_DBG("RREQ:destination_sequence_number  %08x ", data->destination_sequence_number)
+		data->source_number_of_elements, data->hop_count, data->source_sequence_number);
+	BT_DBG("RREQ:destination_sequence_number  %08x ", data->destination_sequence_number);
 	BT_DBG("RREQ:RSSI average = %d",data->rssi);
 
 	struct bt_mesh_route_entry *entry = NULL;
@@ -529,7 +509,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry) &&
 		(data->source_sequence_number <entry->destination_sequence_number +RREQ_RING_SEARCH_MAX_TTL))
 		{
-			printk("RREQ is dropped because of an already existing entry and sequence number is within ring search");
+			BT_DBG("RREQ is dropped because of an already existing entry and sequence number is within ring search");
 			return -ENORREQSENT;
 		}
 		if (bt_mesh_search_valid_destination_without_source(data->destination_address, rx->ctx.net_idx, &entry)
@@ -560,8 +540,8 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		 *   - send a directed RREQ to RREQ's destination
 		 */
 		view_valid_list();
-		printk("data->U  %01x \n", data->U);
-		printk("entry->destination_sequence_number %08x , data->destination_sequence_number %08x \n",
+		BT_DBG("data->U  %01x", data->U);
+		BT_DBG("entry->destination_sequence_number %08x , data->destination_sequence_number %08x",
 			entry->destination_sequence_number,data->destination_sequence_number);
 		if (entry->destination_sequence_number >= data->destination_sequence_number)
 		{
@@ -641,7 +621,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
  		SYS_SLIST_FOR_EACH_CONTAINER(&rrep_rwait_list, temp, node)
  		{
  			/* RWAIT Received */
-			printk("\n\n\n\n\nfound list ITEM\n\n\n\n\n\n");
+			BT_DBG("found rrep/rwait list item");
  			if(temp->hop_count != 0)
  			{
  				BT_DBG("Delaying Ring Search with hop count =%d",temp->hop_count);
@@ -672,7 +652,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
  		 */
  			rreq_info->ring_data.source_sequence_number = bt_mesh.seq;
  			rreq_send(&rreq_info->ring_data, rreq_info->TTL, rreq_info->net_idx);
- 			printk("current TTL=%d \n", rreq_info->TTL);
+ 			BT_DBG("current TTL=%d", rreq_info->TTL);
  			/* Opt out if the max TTL is reached */
 
  			if (rreq_info->TTL == RREQ_RING_SEARCH_MAX_TTL)
@@ -685,14 +665,12 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
  				rreq_info->TTL=rreq_info->TTL+1;
  				k_delayed_work_submit(&rreq_info->timer,RREQ_RING_SEARCH_WAIT_INTERVAL+RREQ_RING_SEARCH_WAIT_INTERVAL_CONST*rreq_info->TTL);
  			}
- 			printk("returning...\n");
  			return;
  }
 
 
 int bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_trans_ring_search >>>>>>>>>>>>>> \n\n");
 	k_sem_take(&ring_search_sem,K_FOREVER);
 	if (ring.output==1)
 	{
@@ -783,14 +761,14 @@ int bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 	    k_delayed_work_submit(&ring_ptr->ring,RING_BUFFER_DELAY);
 			return 0;
 		}
-	  BT_DBG("***********************\n\n\nOut of buffering memory\n\n\n************************");
+	  BT_DBG("Out of buffering memory");
 		return -EINVAL;
 	}
 
 
 	static void ring_buf_handler(struct k_work *work)
 	{
-		printk("\n\n\n\n\nattempting to send buffered SDU\n\n\n\n\n\n");
+		BT_DBG("attempting to send buffered SDU");
 		struct ring_buf *ring_ptr = CONTAINER_OF(work, struct ring_buf, ring);
 	  struct bt_mesh_net_tx tx = {
 	    .src = ring_ptr->src,
@@ -828,8 +806,6 @@ int bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
  */
 static int rrep_send(struct rrep_data *data,u16_t net_idx, u16_t destination_address )
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< rrep_send >>>>>>>>>>>>>> \n\n");
-
 	/* TODO : check when rreq_recv is calling rrep_send */
 	struct bt_mesh_msg_ctx ctx =
 	{
@@ -845,12 +821,6 @@ static int rrep_send(struct rrep_data *data,u16_t net_idx, u16_t destination_add
 	};
 	tx.ctx->addr = destination_address;
 	tx.src = bt_mesh_primary_addr();
-
-	printk("RREP_send:source_address 0x%04x destination_address 0x%04x destination_sequence_number 0x%08x",
-	 data->source_address, data->destination_address,data->destination_sequence_number);
-	printk("RREP_send:hop_count %01x destination_number_of_elements %04x",
-		data->hop_count, data->destination_number_of_elements);
-
 
 	BT_DBG("RREP_send:source_address 0x%04x destination_address 0x%04x destination_sequence_number 0x%08x",
 	 data->source_address, data->destination_address,data->destination_sequence_number);
@@ -880,7 +850,6 @@ static int rrep_send(struct rrep_data *data,u16_t net_idx, u16_t destination_add
  */
 static int rrep_rwait_list_create_entry(struct rrep_rwait_list_entry *entry_data)
 {
-	printk("  <<<<<<<<<<<< rrep_rwait_list_create_entry >>>>>>>>>>>>>> ");
 	struct rrep_rwait_list_entry* entry_location=NULL;
 	/* Insert a new node into rrep_rwait_list */
 	if (k_mem_slab_alloc(&rrep_slab, (void **)&entry_location, 100) == 0)
@@ -913,7 +882,6 @@ static int rrep_rwait_list_create_entry(struct rrep_rwait_list_entry *entry_data
  */
 int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_trans_rrep_recv >>>>>>>>>>>>>> \n\n");
 	/* _GUI_ */
 	printk("\n[GUI] %04x-RREP-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
 	/* Dissect the RREP into its fields */
@@ -927,10 +895,6 @@ int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	data->destination_number_of_elements = RREP_GET_SRC_NUMBER_OF_ELEMENTS(buf);
 	overhead_control(buf->len);
 	/* Testing: View received RREP  */
-	printk("RREP R 0x%01x,RREP source_address 0x%04x,RREP dst 0x%04x ", data->R,data->source_address,data->destination_address);
-	printk("RREP seq 0x%04x,RREP hop_count 0x%02x,RREP elem 0x%02x ", data->destination_sequence_number, data->hop_count, data->destination_number_of_elements);
-	printk("RREP Network Src 0x%02x,Network dst 0x%02x,Network recieved TTL 0x%02x ", rx->ctx.addr,rx->dst, rx->ctx.send_ttl);
-
 	BT_DBG("RREP R 0x%01x,RREP source_address 0x%04x,RREP dst 0x%04x ", data->R,data->source_address,data->destination_address);
 	BT_DBG("RREP seq 0x%04x,RREP hop_count 0x%02x,RREP elem 0x%02x ", data->destination_sequence_number, data->hop_count, data->destination_number_of_elements);
 	BT_DBG("RREP Network Src 0x%02x,Network dst 0x%02x,Network recieved TTL 0x%02x ", rx->ctx.addr,rx->dst, rx->ctx.send_ttl);
@@ -1308,7 +1272,6 @@ static void rerr_list_delete_entry(struct rerr_list_entry *entry )
 
 	static int rerr_send(struct rerr_list_entry *data)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< rerr_send >>>>>>>>>>>>>> \n\n");
 	/*only used by intermediate nodes*/
 	struct bt_mesh_msg_ctx ctx =
 	{
@@ -1360,7 +1323,6 @@ static void rerr_list_delete_entry(struct rerr_list_entry *entry )
  */
 int bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_trans_rerr_recv >>>>>>>>>>>>>> \n\n");
 	/* _GUI_ */
 	printk("\n[GUI] %04x-RERR-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
 	struct rerr_list_entry temp;
@@ -1414,7 +1376,7 @@ int bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 
 void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_route_entry **temp)
 {
-	BT_DBG("  <<<<<<<<<<<< search_callback >>>>>>>>>>>>>> ");
+	BT_DBG("<<<<<<<<<<<< search_callback >>>>>>>>>>>>>>");
 	/*Current node is a terminal node in the found path*/
 	if ( entry_found->source_address==bt_mesh_primary_addr())
 	{
@@ -1479,7 +1441,6 @@ void search_callback(struct bt_mesh_route_entry *entry_found,struct bt_mesh_rout
  */
 void view_rerr_list()
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< view_rerr_list >>>>>>>>>>>>>> \n\n");
 	if (sys_slist_is_empty(&rerr_list))
 	{
 		BT_DBG("rerr is empty ");
@@ -1502,11 +1463,11 @@ void view_rerr_list()
  */
 bool is_empty_rerr_list()
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< is_empty_rerr_list >>>>>>>>>>>>>> \n\n");
 	if (sys_slist_is_empty(&rerr_list)) {
 		BT_DBG("RERR List is empty ");
 		return true;
 	}
+	BT_DBG("RERR List is not empty ");
 	return false;
 }
 
@@ -1517,12 +1478,12 @@ bool is_empty_rerr_list()
  */
 bool is_empty_hello_msg_list()
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< is_empty_hello_msg_list >>>>>>>>>>>>>> \n\n");
 	if (sys_slist_is_empty(&hello_msg_list))
 	{
 		BT_DBG("Hello msg List is empty");
 		return true;
 	}
+	BT_DBG("Hello msg List is not empty");
 	return false;
 }
 
@@ -1535,11 +1496,8 @@ bool is_empty_hello_msg_list()
  */
 void hello_msg_list_entry_expiry_fn(struct k_timer *timer_id)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< hello_msg_list_entry_expiry_fn >>>>>>>>>>>>>> \n\n");
-
 	/*fetching the entry of the expired timer to get its next hop*/
 	struct hello_msg_list_entry *entry = CONTAINER_OF(timer_id, struct hello_msg_list_entry, lifetime);
-	printk("timer expired for source address=%04x \n", entry->source_address);
 	BT_DBG("timer expired for source address=%04x", entry->source_address);
 	/* _GUI_ */
 	printk("\n[GUI] DROPPED-%04x\n", entry->source_address);
@@ -1554,7 +1512,6 @@ void hello_msg_list_entry_expiry_fn(struct k_timer *timer_id)
 	{
 		SYS_SLIST_FOR_EACH_CONTAINER(&rerr_list, rerr_rx_entry, node)
 		{
-			printk(" Sending RERR to nexthop %04x ",rerr_rx_entry->next_hop);
 			BT_DBG(" Sending RERR to nexthop %04x ",rerr_rx_entry->next_hop);
 			rerr_send(rerr_rx_entry);
 			rerr_list_delete_entry(rerr_rx_entry);
@@ -1580,7 +1537,6 @@ void hello_msg_list_entry_expiry_fn(struct k_timer *timer_id)
 
 void hello_msg_list_delete_entry(struct hello_msg_list_entry *entry )
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< hello_msg_list_delete_entry >>>>>>>>>>>>>> \n\n");
 	k_timer_stop(&entry->lifetime);
 	k_sem_take(&hello_msg_list_sem, K_FOREVER);   							/* take semaphore */
 	sys_slist_find_and_remove(&hello_msg_list, &entry->node);   /*delete node from linked list */
@@ -1600,7 +1556,6 @@ void hello_msg_list_delete_entry(struct hello_msg_list_entry *entry )
 
 static int hello_msg_list_create_entry(struct hello_msg_list_entry **entry_location)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< hello_msg_list_create_entry >>>>>>>>>>>>>> \n\n");
 	/*if space found in slab, Allocate new node */
 	if (k_mem_slab_alloc(&hello_msg_slab, (void **)&(*entry_location), 100) == 0)
 	{
@@ -1663,24 +1618,20 @@ bool hello_msg_list_search_entry(u16_t src, struct hello_msg_list_entry **entry_
 
 void bt_mesh_trans_hello_msg_recv(u16_t src)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_trans_hello_msg_recv >>>>>>>>>>>>>> \n\n");
-  	struct hello_msg_list_entry temp_entry;
-  	struct hello_msg_list_entry *entry = &temp_entry;
-  	entry->source_address=src;
-	printk("HB:recv is %04x  \n",src);
+	struct hello_msg_list_entry temp_entry;
+	struct hello_msg_list_entry *entry = &temp_entry;
+	entry->source_address=src;
 	BT_DBG("HB:recv is %04x ",src);
-
-  	if (hello_msg_list_search_entry(src, &entry))
-  	{
-		BT_DBG("HB:entry found src is %04x ",entry->source_address);
-		k_timer_stop(&entry->lifetime);
-		struct k_timer temp_timer;
-		entry->lifetime = temp_timer;
-		k_timer_init(&entry->lifetime,hello_msg_list_entry_expiry_fn, NULL);
-		k_timer_start(&entry->lifetime, HELLO_MSG_LIFETIME, 0);
-		view_hello_msg_list();
-	}
-
+	if (hello_msg_list_search_entry(src, &entry))
+	{
+	BT_DBG("HB:entry found src is %04x ",entry->source_address);
+	k_timer_stop(&entry->lifetime);
+	struct k_timer temp_timer;
+	entry->lifetime = temp_timer;
+	k_timer_init(&entry->lifetime,hello_msg_list_entry_expiry_fn, NULL);
+	k_timer_start(&entry->lifetime, HELLO_MSG_LIFETIME, 0);
+	view_hello_msg_list();
+  }
 }
 /**
  *	@brief it adds new neighbour to the hello message list if it wasn't added before.
@@ -1694,7 +1645,6 @@ void bt_mesh_trans_hello_msg_recv(u16_t src)
 
 static void add_neighbour(u16_t neighbour, u16_t net_idx)
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< add_neighbour >>>>>>>>>>>>>> \n\n");
 	/*search for this neighbour in the hello msg list, if not exist , create a new entry*/
   	struct hello_msg_list_entry temp_entry;
   	struct hello_msg_list_entry *entry = &temp_entry;
@@ -1722,7 +1672,7 @@ static void add_neighbour(u16_t neighbour, u16_t net_idx)
 
 void view_hello_msg_list()
 {
-	printk("\n\n\n\n\n  <<<<<<<<<<<< view_hello_msg_list >>>>>>>>>>>>>> \n\n");
+	BT_DBG("<<<<<<<<<<<< view_hello_msg_list >>>>>>>>>>>>>>");
 	if (is_empty_hello_msg_list())
 	{
 		return;
@@ -1731,7 +1681,7 @@ void view_hello_msg_list()
 	k_sem_take(&hello_msg_list_sem, K_FOREVER);
 	SYS_SLIST_FOR_EACH_CONTAINER(&hello_msg_list, entry, node)
 	{
-		printk("\x1b[32m Hello msg List:source address=%04x\x1b[0m ", entry->source_address);
+		BT_DBG("\x1b[32m Hello msg List:source address=%04x\x1b[0m ", entry->source_address);
 	}
 	k_sem_give(&hello_msg_list_sem);
 }

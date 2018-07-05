@@ -463,6 +463,7 @@ void bt_mesh_delete_entry_valid(struct k_timer *timer_id)
 {
 	/* container of timer_id to be deleted*/
 	struct bt_mesh_route_entry *entry = CONTAINER_OF(timer_id, struct bt_mesh_route_entry, lifetime);
+	BT_DBG("SRC=%04x,DST=%04x",entry->source_address,entry->destination_address);
 	k_sem_take(&valid_list_sem, K_FOREVER);   							/* take semaphore */
 	sys_slist_find_and_remove(&valid_list, &entry->node);   /*delete node from linked list */
 	k_sem_give(&valid_list_sem);                            /*return semaphore */
@@ -479,6 +480,7 @@ void bt_mesh_delete_entry_invalid(struct k_timer *timer_id)
 {
 	 /* container of timer_id to be deleted*/
 	struct bt_mesh_route_entry *entry = CONTAINER_OF(timer_id, struct bt_mesh_route_entry, lifetime);
+	BT_DBG("SRC=%04x,DST=%04x",entry->source_address,entry->destination_address);
 	k_sem_take(&invalid_list_sem, K_FOREVER);               /* take semaphore */
 	sys_slist_find_and_remove(&invalid_list, &entry->node); /*delete node from linked list */
 	k_sem_give(&invalid_list_sem);                          /*return semaphore */
@@ -514,19 +516,10 @@ void bt_mesh_delete_entry_invalid_rerr(struct k_timer *timer_id)
 */
 void bt_mesh_refresh_lifetime_valid(struct bt_mesh_route_entry *entry)
 {
-	k_timer_stop(&entry->lifetime);
-	struct k_timer temp;
-	entry->lifetime = temp;
-	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_valid, NULL);
 	k_timer_start(&entry->lifetime, LIFETIME, 0);
 	struct bt_mesh_route_entry* reverse_entry;
 	if (bt_mesh_search_valid_destination(entry->destination_address,entry->source_address,entry->net_idx,&reverse_entry))
 	{
-		BT_DBG("two directional entry found");
-		k_timer_stop(&reverse_entry->lifetime);
-		struct k_timer temp2;
-		reverse_entry->lifetime = temp2;
-		k_timer_init(&reverse_entry->lifetime, bt_mesh_delete_entry_valid, NULL);
 		k_timer_start(&reverse_entry->lifetime, LIFETIME, 0);
 		BT_DBG("Lifetime of valid entry refreshed bidrectional");
 	}
@@ -544,10 +537,6 @@ void bt_mesh_refresh_lifetime_valid(struct bt_mesh_route_entry *entry)
 */
 void bt_mesh_refresh_lifetime_invalid(struct bt_mesh_route_entry *entry)
 {
-	k_timer_stop(&entry->lifetime);
-	struct k_timer temp;
-	entry->lifetime = temp;
-	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_invalid, NULL);
 	k_timer_start(&entry->lifetime, LIFETIME, 0);
 	BT_DBG("Lifetime of invalid entry refreshed");
 }
@@ -577,8 +566,7 @@ bool bt_mesh_validate_route(struct bt_mesh_route_entry *entry)
 	sys_slist_append(&valid_list, &entry->node);    /*insert node in linkedlist */
 	k_sem_give(&valid_list_sem);
 
-	struct k_timer temp;
-	entry->lifetime = temp;
+	memset(&entry->lifetime,0,sizeof(struct k_timer));
 	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_valid, NULL);
 	k_timer_start(&entry->lifetime, LIFETIME, 0);
 	return true;
@@ -608,8 +596,7 @@ bool bt_mesh_invalidate_route(struct bt_mesh_route_entry *entry)
 	sys_slist_append(&invalid_list, &entry->node);  /*insert node in linkedlist */
 	k_sem_give(&invalid_list_sem);
 
-	struct k_timer temp;
-	entry->lifetime = temp;
+	memset(&entry->lifetime,0,sizeof(struct k_timer));
 	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_invalid, NULL);
 	k_timer_start(&entry->lifetime, LIFETIME, 0);
 	return true;
@@ -630,8 +617,7 @@ bool bt_mesh_invalidate_rerr_route(struct bt_mesh_route_entry *entry)
 	sys_slist_append(&invalid_rerr_list, &entry->node);  /*insert node in linkedlist */
 	k_sem_give(&invalid_rerr_list_sem);
 
-	struct k_timer temp;
-	entry->lifetime = temp;
+	memset(&entry->lifetime,0,sizeof(struct k_timer));
 	k_timer_init(&entry->lifetime, bt_mesh_delete_entry_invalid_rerr, NULL);
 	k_timer_start(&entry->lifetime, LIFETIME, 0);
 	return true;

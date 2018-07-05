@@ -1570,7 +1570,6 @@ static int hello_msg_list_create_entry(struct hello_msg_list_entry **entry_locat
 		BT_ERR("Memory Allocation timeout ");
 		return -ENOSR;
 	}
-
 	/* Start the lifetime timer */
 	k_timer_init (&(*entry_location)->lifetime, hello_msg_list_entry_expiry_fn, NULL);
 	k_timer_start(&(*entry_location)->lifetime, HELLO_MSG_LIFETIME, 0);
@@ -1625,10 +1624,6 @@ void bt_mesh_trans_hello_msg_recv(u16_t src)
 	if (hello_msg_list_search_entry(src, &entry))
 	{
 	BT_DBG("HB:entry found src is %04x ",entry->source_address);
-	k_timer_stop(&entry->lifetime);
-	struct k_timer temp_timer;
-	entry->lifetime = temp_timer;
-	k_timer_init(&entry->lifetime,hello_msg_list_entry_expiry_fn, NULL);
 	k_timer_start(&entry->lifetime, HELLO_MSG_LIFETIME, 0);
 	view_hello_msg_list();
   }
@@ -1651,14 +1646,14 @@ static void add_neighbour(u16_t neighbour, u16_t net_idx)
   	entry->source_address=neighbour;
     BT_DBG("hb source is: %04x",neighbour);
   	if (!hello_msg_list_search_entry(neighbour, &entry))
-	{
-		struct hello_msg_list_entry  *entry_hello;
-		hello_msg_list_create_entry(&entry_hello);
-		entry_hello->source_address=neighbour;
-		entry_hello->net_idx=net_idx;
-		view_hello_msg_list();
-		view_valid_list();
-	}
+		{
+			struct hello_msg_list_entry  *entry_hello;
+			hello_msg_list_create_entry(&entry_hello);
+			entry_hello->source_address=neighbour;
+			entry_hello->net_idx=net_idx;
+			view_hello_msg_list();
+			view_valid_list();
+		}
 
 }
 

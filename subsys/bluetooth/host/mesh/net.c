@@ -1188,7 +1188,7 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 	nid = rx->sub->keys[rx->sub->kr_flag].nid;
 
 	BT_DBG("Relaying packet. TTL is now %u", TTL(buf->data));
-
+	printk("[GUI] %04x-PktActual-%d\n",bt_mesh_primary_addr(),10);
 	/* Update NID if RX or RX was with friend credentials */
 	if (rx->friend_cred) {
 		buf->data[0] &= 0x80; /* Clear everything except IVI */

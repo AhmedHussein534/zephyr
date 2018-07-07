@@ -454,10 +454,33 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	else if (bt_mesh_elem_find(data->destination_address))
 	{
 		/* Drop any received RREQ after the expiry of the ring search timer */
-		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry) &&
-        	(data->source_sequence_number < entry->destination_sequence_number + RREQ_RING_SEARCH_MAX_TTL)) {
-			BT_ERR("RREQ dropped - RREQ received after RREP Interval");
-			return -ENORREQ;
+		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry)) {
+			/*Compare sequence numbers before dropping packets*/
+					if (data->source_sequence_number >= (entry->destination_sequence_number+RREQ_RING_SEARCH_MAX_TTL))
+					{
+						bt_mesh_invalidate_rerr_route(entry);
+						BT_DBG("Creating entry and waiting for RREQ wait interval ");
+						/* Create a reverse entry */
+						struct bt_mesh_route_entry *entry_data;
+						if(bt_mesh_create_entry_invalid_with_cb(&entry_data, rreq_recv_cb))
+						{
+							entry_data->source_address                 = data->destination_address;
+							entry_data->destination_address            = data->source_address;
+							entry_data->destination_sequence_number    = data->source_sequence_number;
+							entry_data->next_hop                       = data->next_hop;
+							entry_data->source_number_of_elements      = bt_mesh_elem_count();
+							entry_data->destination_number_of_elements = data->source_number_of_elements;
+							entry_data->hop_count                      = data->hop_count;
+							entry_data->rssi 													 = data-> rssi;
+							entry_data->net_idx 											 = rx -> ctx.net_idx;
+							return 0;
+					}
+				}
+				else
+			  {
+					BT_ERR("RREQ dropped - RREQ received after RREP Interval");
+					return -ENORREQ;
+		    }
 		}
 		/* Multiple RREQs are received in the interval of ring search timer */
 		else if (bt_mesh_search_invalid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry))
@@ -505,11 +528,32 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	*/
 	if (IS_ENABLED(CONFIG_BT_MESH_RELAY))
 	{
-		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry) &&
-		(data->source_sequence_number <entry->destination_sequence_number +RREQ_RING_SEARCH_MAX_TTL))
+		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry))
 		{
-			BT_DBG("RREQ is dropped because of an already existing entry and sequence number is within ring search");
-			return -ENORREQSENT;
+			if (data->source_sequence_number < (entry->destination_sequence_number +RREQ_RING_SEARCH_MAX_TTL))
+								{
+									BT_DBG("RREQ is dropped because of an already existing entry and sequnce number is within ring seach");
+									return -ENORREQSENT;
+								}
+								else
+								{
+									bt_mesh_invalidate_rerr_route(entry);
+									struct bt_mesh_route_entry *entry_data;
+									if(! bt_mesh_create_entry_invalid(&entry_data))
+													return -ENOSR;
+										entry_data->source_address                 = data->destination_address;
+										entry_data->destination_address            = data->source_address;
+										entry_data->destination_sequence_number    = data->source_sequence_number;
+										entry_data->next_hop                       = data->next_hop;
+										entry_data->source_number_of_elements      = 1; /* UNKNOWN. Will be corrected by RREP */
+										entry_data->destination_number_of_elements = data->source_number_of_elements;
+										entry_data->hop_count                      = data->hop_count;
+										entry_data->rssi 													 = data-> rssi;
+										entry_data->net_idx 											 = rx -> ctx.net_idx;
+										data->hop_count ++;
+										/* Relay the received RREQ */
+										return rreq_send(data, rx->ctx.recv_ttl - 1, rx->ctx.net_idx);
+								}
 		}
 		if (bt_mesh_search_valid_destination_without_source(data->destination_address, rx->ctx.net_idx, &entry)
 						&& data->D == false && data->I == false)
@@ -548,9 +592,8 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			data->I = 1;
 			data->hop_count = data->hop_count + 1;
 			rreq_send(data, 0, rx->ctx.net_idx); /* To RREQ's destination */
-			struct rwait_data *temp=NULL; /* Dummy struct */
 			entry_data->hop_count = entry -> hop_count;
-			rwait_send(data,entry_data,temp,rx,false); /* To RREQ's originator */
+			rwait_send(data,entry_data,NULL,rx,false); /* To RREQ's originator */
 		}
 	}
 	else
@@ -1043,12 +1086,14 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
 		ctx.send_ttl = 0;
 		tx.ctx  = &ctx;
 	}
-	else
+	else if(rwait_data !=NULL)
 	{
 		data = rwait_data;
 		ctx = rx->ctx;
 		tx.ctx  = &ctx;
 	}
+	else
+			return;
 	tx.sub  = bt_mesh_subnet_get(rreq_net_idx);
 	tx.src  = bt_mesh_primary_addr();
 	tx.xmit = bt_mesh_net_transmit_get();

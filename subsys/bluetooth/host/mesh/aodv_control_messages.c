@@ -456,7 +456,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		/* Drop any received RREQ after the expiry of the ring search timer */
 		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry)) {
 			/*Compare sequence numbers before dropping packets*/
-					if (data->source_sequence_number >= (entry->destination_sequence_number+RREQ_RING_SEARCH_MAX_TTL))
+					if (data->source_sequence_number >= (entry->destination_sequence_number+2*RREQ_RING_SEARCH_MAX_TTL))
 					{
 						bt_mesh_invalidate_rerr_route(entry);
 						BT_DBG("Creating entry and waiting for RREQ wait interval ");
@@ -530,14 +530,16 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	{
 		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry))
 		{
-			if (data->source_sequence_number < (entry->destination_sequence_number +RREQ_RING_SEARCH_MAX_TTL))
+			if (data->source_sequence_number < (entry->destination_sequence_number +2*RREQ_RING_SEARCH_MAX_TTL))
 								{
 									BT_DBG("RREQ is dropped because of an already existing entry and sequnce number is within ring seach");
 									return -ENORREQSENT;
 								}
-								else
+		  else
 								{
 									bt_mesh_invalidate_rerr_route(entry);
+									if (bt_mesh_search_valid_destination(data->source_address, data->destination_address, rx->ctx.net_idx, &entry))
+													bt_mesh_invalidate_rerr_route(entry);
 									struct bt_mesh_route_entry *entry_data;
 									if(! bt_mesh_create_entry_invalid(&entry_data))
 													return -ENOSR;

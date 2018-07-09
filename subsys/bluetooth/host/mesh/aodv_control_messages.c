@@ -174,9 +174,32 @@ struct ring_struct {
 	struct rreq_data ring_data;
 	u8_t TTL;
 	u16_t net_idx;
-	int output;
+	int processing;
 	struct k_delayed_work timer;
 } ring;
+
+
+static struct ring_buf {
+		struct bt_mesh_subnet *sub;
+	  u16_t src;
+		u8_t  xmit;
+		u8_t  friend_cred:1,
+		      aszmic:1,
+		      aid:6;
+	  u8_t in_use;
+	  struct bt_mesh_msg_ctx ctx;
+	  const void* cb;
+	  void* cb_data;
+		struct k_delayed_work ring;
+		struct net_buf_simple  buf;
+	} ring_buf[CONFIG_BT_MESH_RING_BUF_COUNT] = {
+		[0 ... (CONFIG_BT_MESH_RING_BUF_COUNT - 1)] = {
+			.buf.size = BT_MESH_TX_SDU_MAX,
+		},
+	};
+
+	static u8_t __noinit ring_buf_data[(CONFIG_BT_MESH_RING_BUF_COUNT * BT_MESH_TX_SDU_MAX)];                //buffers data pool
+
 
 K_MEM_SLAB_DEFINE(rrep_slab, RREP_ENTRY_SIZE, rrep_rwait_list_NUMBER_OF_ENTRIES, ALLIGNED);
 K_SEM_DEFINE(rrep_rwait_list_sem, 1, 1);  /* Binary semaphore for RREP linked list critical section */
@@ -334,7 +357,7 @@ static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
 		.src  = bt_mesh_primary_addr(),
 		.aszmic = 1,
 		.xmit = bt_mesh_net_transmit_get(),
-		.routing = true
+		.routing = 1,
 	};
 
 	/* Add RREQ data in a buffer to be sent */
@@ -674,6 +697,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
  				sys_slist_find_and_remove(&rrep_rwait_list, &temp->node);
  				k_sem_give(&rrep_rwait_list_sem);
  				k_mem_slab_free(&rrep_slab, (void **)&temp);
+				return;
  			}
 
  			/* RREP Received */
@@ -683,7 +707,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
  				sys_slist_find_and_remove(&rrep_rwait_list, &temp->node);
  				k_sem_give(&rrep_rwait_list_sem);
  				k_mem_slab_free(&rrep_slab, (void **)&temp);
- 				rreq_info->output=0;
+ 				rreq_info->processing=0;
 				return;
  			}
  		}
@@ -698,16 +722,35 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
  			BT_DBG("current TTL=%d", rreq_info->TTL);
  			/* Opt out if the max TTL is reached */
 
- 			if (rreq_info->TTL == RREQ_RING_SEARCH_MAX_TTL)
+ 			if (rreq_info->TTL == BT_MESH_TTL_MAX)
  			{
  				BT_ERR("max TTL is reached. Ring search has stopped");
- 				rreq_info->output=0;
+ 				rreq_info->processing=0;
+				int i;
+				for (i = 0; i < ARRAY_SIZE(ring_buf); i++) {
+					struct ring_buf *ring_ptr = &ring_buf[i];
+
+					if ((!ring_ptr->in_use) || (ring_ptr->ctx.addr!=rreq_info->ring_data.destination_address)) {
+						continue;
+					}
+					BT_DBG("resetting buffered sdu after ring search failure");
+					k_delayed_work_cancel(&ring_ptr->ring);
+					ring_ptr->in_use = 0;
+					return;
+				}
+				return;
  			}
- 			else
+ 			else if (rreq_info->TTL == RREQ_RING_SEARCH_MAX_TTL)
  			{
- 				rreq_info->TTL=rreq_info->TTL+1;
+				BT_DBG("Sending RREQ with BT_MESH_TTL_MAX");
+ 				rreq_info->TTL=BT_MESH_TTL_MAX;
  				k_delayed_work_submit(&rreq_info->timer,RREQ_RING_SEARCH_WAIT_INTERVAL+RREQ_RING_SEARCH_WAIT_INTERVAL_CONST*rreq_info->TTL);
  			}
+			else
+			{
+				rreq_info->TTL=rreq_info->TTL+1;
+				k_delayed_work_submit(&rreq_info->timer,RREQ_RING_SEARCH_WAIT_INTERVAL+RREQ_RING_SEARCH_WAIT_INTERVAL_CONST*rreq_info->TTL);
+			}
  			return;
  }
 
@@ -715,7 +758,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 int bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 {
 	k_sem_take(&ring_search_sem,K_FOREVER);
-	if (ring.output==1)
+	if (ring.processing==1)
 	{
 		BT_DBG("a ring search is still processing");
 		k_sem_give(&ring_search_sem);
@@ -744,35 +787,12 @@ int bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 	ring.ring_data.destination_sequence_number = destination_sequence_number;
 	ring.TTL=2; /* Mesh specs prohibits the use of TTL = 1 */
 	ring.net_idx=tx->ctx->net_idx;
-	ring.output=1;
+	ring.processing=1;
 	k_delayed_work_submit(&ring.timer,0);
 	k_sem_give(&ring_search_sem);
 	return 0;
 }
 
-
-static struct ring_buf {
-		struct bt_mesh_subnet *sub;
-	  u16_t src;
-		u8_t  xmit;
-		u8_t  friend_cred:1,
-		      aszmic:1,
-		      aid:6;
-		u8_t routing;
-	  u8_t in_use;
-	  struct bt_mesh_msg_ctx ctx;
-	  const void* cb;
-	  void* cb_data;
-		struct k_delayed_work ring;
-		struct net_buf_simple  buf;
-	} ring_buf[CONFIG_BT_MESH_RING_BUF_COUNT] = {
-		[0 ... (CONFIG_BT_MESH_RING_BUF_COUNT - 1)] = {
-			.buf.size = BT_MESH_TX_SDU_MAX,
-		},
-	};
-
-	static u8_t __noinit ring_buf_data[(CONFIG_BT_MESH_RING_BUF_COUNT *
-					      BT_MESH_TX_SDU_MAX)];                //buffers data pool
 
  int bt_mesh_trans_ring_buf_alloc(struct bt_mesh_net_tx *tx, struct net_buf_simple *msg,
 			       const struct bt_mesh_send_cb *cb, void *cb_data)
@@ -795,7 +815,6 @@ static struct ring_buf {
 	    ring_ptr->aszmic = tx->aszmic;
 	    ring_ptr->aid = tx->aid;
 	    ring_ptr->ctx = *tx->ctx;
-	    ring_ptr->routing=tx->routing;
 	    ring_ptr->cb=cb;
 	    ring_ptr->cb_data = cb_data;
 	    memcpy(ring_ptr->buf.data, msg->data, msg->len);
@@ -820,7 +839,6 @@ static struct ring_buf {
 	    .aszmic = ring_ptr->aszmic,
 	    .aid = ring_ptr->aid,
 	    .ctx = &ring_ptr->ctx,
-	    .routing = ring_ptr->routing,
 	  };
 	  int err;
 	  err = bt_mesh_trans_send (&tx,&ring_ptr->buf,ring_ptr->cb,ring_ptr->cb_data);

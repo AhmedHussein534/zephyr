@@ -318,7 +318,7 @@ static const struct bt_mesh_prov prov = {
 	.period =0b01001010,   //1500 ms
 	.transmit=BT_MESH_TRANSMIT(3, 20),
 	};
-	//bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
+	bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
 	printk("Configuration complete\n");
  }
 

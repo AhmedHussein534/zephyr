@@ -11,20 +11,27 @@
 
 #include <misc/printk.h>
 #include <misc/byteorder.h>
-//#include <nrf.h>
+#include <misc/util.h>
+#include <nrf.h>
+#include <device.h>
+#include <gpio.h>
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/conn.h>
 #include <bluetooth/l2cap.h>
 #include <bluetooth/hci.h>
+#include <errno.h>
 #include <bluetooth/mesh.h>
 #include <stdio.h>
 #include <board.h>
+#include "../subsys/bluetooth/host/mesh/net.h"
+#include "../subsys/bluetooth/host/mesh/aodv_control_messages.h"
+
 #define CID_INTEL 0x0002 /*Company identifier assigned by the Bluetooth SIG*/
 #define NODE_ADDR 0x0001 /*Unicast Address*/
 #define GROUP_ADDR 0x9999 /*The Address to use for pub and sub*/
-#define STACKSIZE 500
+#define STACKSIZE 1024
 #define ALLIGN 4
-#define QSIZE 1000 //XXX
+#define QSIZE 1024 //XXX
 #define AGGREGATION_PRIORITY 5
 #define AGGREGATION_INTERVAL 10 *1000 //in ms
 #define NODES_NUM					3
@@ -213,6 +220,77 @@ static const struct bt_mesh_comp comp = {
 	.elem = &root,
 	.elem_count = 1,
 };
+
+
+
+struct device *sw_device;
+static struct gpio_callback button_cb;  //button call back
+static u32_t time, last_time;
+#define BUTTON_DEBOUNCE_DELAY_MS 250
+struct bt_mesh_cfg_mod_pub pub;
+
+/*
+ * Map GPIO pins to button number
+ * Change to select different GPIO input pins
+ */
+
+static uint8_t pin_to_sw(uint32_t pin_pos)
+{
+	switch (pin_pos) {
+	case BIT(SW0_GPIO_PIN): return 0;
+	case BIT(SW1_GPIO_PIN): return 1;
+	case BIT(SW2_GPIO_PIN): return 2;
+	case BIT(SW3_GPIO_PIN): return 3;
+	}
+	SYS_LOG_ERR("No match for GPIO pin 0x%08x", pin_pos);
+	return 0;
+}
+static void button_pressed(struct device *dev, struct gpio_callback *cb,
+			   uint32_t pin_pos)
+{
+	/*
+	 * One button press within a 1 second interval sends an on message
+	 * More than one button press sends an off message
+	 */
+
+	time = k_uptime_get_32();
+
+	/* debounce the switch */
+	if (time < last_time + BUTTON_DEBOUNCE_DELAY_MS) {
+		last_time = time;
+		return;
+	}
+
+
+
+	/* The variable pin_pos is the pin position in the GPIO register,
+	 * not the pin number. It's assumed that only one bit is set.
+	 */
+	switch (pin_to_sw(pin_pos))
+	{
+		case 0:
+		printk("Button 1 pressed - Client No Action\n");
+		break;
+
+		case 1:
+		printk("Button 2 pressed - Client No Action\n");
+		break;
+
+		case 2:
+		printk("Button 3 pressed - Changing Topology \n");
+		change_topology();
+		break;
+
+		case 3:
+		printk("Button 4 pressed - Client No Action\n");
+		break;
+
+		default:
+		printk("BUTTON ERROR \n");
+		break;
+	}
+	last_time = time;
+}
 
 
 
@@ -439,6 +517,7 @@ void board_init(u16_t *addr, u32_t *seq)
 
 void main(void)
 {
+	printk("1\n");
 	int err;
 
 	/*
@@ -446,8 +525,36 @@ void main(void)
 	 */
 	syslog_hook_install(log_cbuf_put);
 	SYS_LOG_INF("Initializing...");
+	/* configuring buttons */
+
+	sw_device = device_get_binding(SW0_GPIO_NAME);
+	gpio_pin_configure(sw_device, SW0_GPIO_PIN,
+				(GPIO_DIR_IN | GPIO_INT | GPIO_INT_EDGE |
+				 GPIO_INT_ACTIVE_LOW | GPIO_PUD_PULL_UP));
+	gpio_pin_configure(sw_device, SW1_GPIO_PIN,
+				(GPIO_DIR_IN | GPIO_INT | GPIO_INT_EDGE |
+				 GPIO_INT_ACTIVE_LOW | GPIO_PUD_PULL_UP));
+	gpio_pin_configure(sw_device, SW2_GPIO_PIN,
+				(GPIO_DIR_IN | GPIO_INT | GPIO_INT_EDGE |
+				 GPIO_INT_ACTIVE_LOW | GPIO_PUD_PULL_UP));
+	gpio_pin_configure(sw_device, SW3_GPIO_PIN,
+				(GPIO_DIR_IN | GPIO_INT | GPIO_INT_EDGE |
+				 GPIO_INT_ACTIVE_LOW | GPIO_PUD_PULL_UP));
+	gpio_init_callback(&button_cb, button_pressed,
+				 BIT(SW0_GPIO_PIN) | BIT(SW1_GPIO_PIN) |
+				 BIT(SW2_GPIO_PIN) | BIT(SW3_GPIO_PIN));
+	printk("2\n");
+	gpio_add_callback(sw_device, &button_cb);
+	printk("3\n");
+	gpio_pin_enable_callback(sw_device, SW0_GPIO_PIN);
+	gpio_pin_enable_callback(sw_device, SW1_GPIO_PIN);
+	gpio_pin_enable_callback(sw_device, SW2_GPIO_PIN);
+	gpio_pin_enable_callback(sw_device, SW3_GPIO_PIN);
+	printk("4\n");
 	board_init(&addr, &seq);
+		printk("5\n");
 	err = bt_enable(bt_ready);
+	printk("6\n");
 	if (err) {
 		SYS_LOG_ERR("Bluetooth init failed (err %d)", err);
 	}

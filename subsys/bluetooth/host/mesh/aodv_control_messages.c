@@ -1421,10 +1421,10 @@ int bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		}
 	}
 	view_valid_list();
-  	view_invalid_list();
-  	view_invalid_rerr_list();
-  	view_hello_msg_list();
-  	view_rerr_list();
+  view_invalid_list();
+  view_invalid_rerr_list();
+  view_hello_msg_list();
+  view_rerr_list();
 	return 0;
 }
 
@@ -1745,4 +1745,31 @@ void view_hello_msg_list()
 		BT_DBG("\x1b[32m Hello msg List:source address=%04x\x1b[0m ", entry->source_address);
 	}
 	k_sem_give(&hello_msg_list_sem);
+}
+/*  Application functions */
+static int topo = 0;
+void change_topology()
+{
+topo = (topo+1)%3;
+if (topo==0)
+{
+	printk("Topology:All nodes in the range of each other\n");
+}
+else if (topo==1)
+{
+	printk("Topology: Diamond\n");
+}
+else if (topo==2)
+{
+	printk("Topology: Linear Nodes\n");
+}
+else {
+	printk("Topology: Error\n");
+}
+}
+
+
+int get_topology()
+{
+	return topo;
 }

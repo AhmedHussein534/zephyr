@@ -25,3 +25,7 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 int bt_mesh_trans_rerr_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf);
 void view_hello_msg_list();
 void bt_mesh_trans_hello_msg_recv(u16_t src);
+
+/* App functions */
+void change_topology();
+int get_topology();

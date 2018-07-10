@@ -23,10 +23,11 @@
 #include <bluetooth/mesh.h>
 #include <stdio.h>
 #include <board.h>
-//#include <stdlib.h>
+#include "../subsys/bluetooth/host/mesh/net.h"
+#include "../subsys/bluetooth/host/mesh/aodv_control_messages.h"
 
 #define CID_INTEL 	 0x0002   /*Company identifier assigned by the Bluetooth SIG*/
-#define NODE_ADDR  	 0x0004   /*Unicast Address*/
+#define NODE_ADDR  	 0x0003   /*Unicast Address*/
 #define GROUP_ADDR 	 0x9999  /*The Address to use for pub and sub*/
 #define START     	 0x20      /* Start of dummy data */
 #define DATA_LEN   	 12       /*length of status (more than 8 == segmented) */
@@ -194,7 +195,7 @@ int periodic_update (struct bt_mesh_model *mod)
 	net_buf_simple_add_le16(sensor_pub_srv.msg,sensors[2]);
 	printk("TVL: %04x,DATA: %04x\n",((0b0<<7)+(0b1000<<3)+X_ID), sensors[2]);
 	printk("[GUI] %04x-startE2E\n",NODE_ADDR);
-	
+
 	return 0;
 }
 
@@ -307,11 +308,8 @@ static void button_pressed(struct device *dev, struct gpio_callback *cb,
 		break;
 
 		case 2:
-		printk("Button 3 pressed - INC \n");
-		if ((pub.period & BIT_MASK(6))<=0x3e)
-				pub.period ++;
-		printk("Period is 0x%04x INC \n",pub.period );
-		bt_mesh_cfg_mod_pub_set(net_idx, addr, addr ,BT_MESH_MODEL_ID_SENSOR_SRV, &pub, NULL);
+		printk("Button 3 pressed - Changing Topology \n");
+		change_topology();
 		break;
 
 		case 3:

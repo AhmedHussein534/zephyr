@@ -605,7 +605,7 @@ static int sdu_recv(struct bt_mesh_net_rx *rx, u8_t hdr, u8_t aszmic,
 	/* _GUI_ */
 	if (!(rx->ctx.addr==bt_mesh_primary_addr()))
 		printk("\n[GUI] %04x-Data-%04x\n",rx->ctx.addr, bt_mesh_primary_addr());
-	
+
 	NET_BUF_SIMPLE_DEFINE(sdu, CONFIG_BT_MESH_RX_SDU_MAX - 4);
 	u8_t *ad;
 	u16_t i;
@@ -822,7 +822,7 @@ static int trans_heartbeat(struct bt_mesh_net_rx *rx,
 		if(!bt_mesh_elem_find(rx->ctx.addr))
 		{
 			printk("HB:recv is %04x RSSI is %d ",rx->ctx.addr,rx->rssi);
-			bt_mesh_trans_hello_msg_recv(rx->ctx.addr);			
+			bt_mesh_trans_hello_msg_recv(rx->ctx.addr);
 		}
 	}
 	bt_mesh_heartbeat(rx->ctx.addr, rx->dst, hops, feat);
@@ -837,51 +837,32 @@ static int ctl_recv(struct bt_mesh_net_rx *rx, u8_t hdr,
 
 	if (IS_ENABLED(CONFIG_BT_MESH_ROUTING))
 	{
-		//for 0x0003
-		
-		if(bt_mesh_primary_addr() == 0x0003)
+		int topology = get_topology();
+		switch (topology)
 		{
-			if (rx->ctx.addr ==0x0004 || rx->ctx.addr ==0x0005 || rx->ctx.addr ==0x0001 )
-			{
-				printk("dropped ctl msg of OpCode 0x%02x from 0x%04x \n", ctl_op,  rx->ctx.addr );
-				return -EINVAL;
-			}
+			case 0: 	/* not dropping any SDUs */
+			break;
 
-		}
-		else if(bt_mesh_primary_addr() == 0x0002)
-		{
-			if (rx->ctx.addr ==0x0001 )
+			case 1: /* Diamond Topology */
+			if(((bt_mesh_primary_addr() == 0x0001) && (rx->ctx.addr ==0x0003)) ||
+		 		 ((bt_mesh_primary_addr() == 0x0003) && (rx->ctx.addr ==0x0001)) )
 			{
-				printk("dropped ctl msg of OpCode 0x%02x from 0x%04x \n", ctl_op,  rx->ctx.addr );
+				printk("Diamond Topology - Dropping message from %04x \n",rx->ctx.addr);
+			  return -EINVAL;
+			}
+			break;
+
+			case 2: /* Linear Topology */
+			if (rx->ctx.addr>bt_mesh_primary_addr()? ((rx->ctx.addr)-bt_mesh_primary_addr()>1):(bt_mesh_primary_addr()-rx->ctx.addr>1))
+			{
+				printk("Linear Topology - Dropping message from %04x \n",rx->ctx.addr);
 				return -EINVAL;
 			}
-		}		
-		else if(bt_mesh_primary_addr() == 0x0004)
-		{
-			if (rx->ctx.addr ==0x0003 )
-			{
-				printk("dropped ctl msg of OpCode 0x%02x from 0x%04x \n", ctl_op,  rx->ctx.addr );
-				return -EINVAL;
-			}
-		}
-		else if(bt_mesh_primary_addr() == 0x0001)
-		{
-			if (rx->ctx.addr ==0x0002 || rx->ctx.addr ==0x0003 )
-			{
-				printk("dropped ctl msg of OpCode 0x%02x from 0x%04x \n", ctl_op,  rx->ctx.addr );
-				return -EINVAL;
-			}
-		}
-		else if(bt_mesh_primary_addr() == 0x0005)
-		{
-			if ( rx->ctx.addr ==0x0003 )
-			{
-				printk("dropped ctl msg of OpCode 0x%02x from 0x%04x \n", ctl_op,  rx->ctx.addr );
-				return -EINVAL;
-			}
+			break;
+			default:
+			printk("Topology Error\n");
 		}
 	}
-
 	BT_DBG("OpCode 0x%02x len %u", ctl_op, buf->len);
 	switch (ctl_op) {
 	case TRANS_CTL_OP_ACK:

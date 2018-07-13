@@ -1188,6 +1188,7 @@ static void bt_mesh_net_relay(struct net_buf_simple *sbuf,
 	nid = rx->sub->keys[rx->sub->kr_flag].nid;
 
 	BT_DBG("Relaying packet. TTL is now %u", TTL(buf->data));
+	printk("[GUI] %04x-PktRed-%d\n",bt_mesh_primary_addr(),10);	
 
 	/* Update NID if RX or RX was with friend credentials */
 	if (rx->friend_cred) {
@@ -1347,7 +1348,7 @@ void bt_mesh_net_recv(struct net_buf_simple *data, s8_t rssi,
 		else
 	 	{
 			printk("Dst of %04x is not unicast or source is an internal element \n",rx.dst);
-		
+
 		}
 		 /* Relay if this was a group/virtual address, or if the destination
 			* was neither a local element nor an LPN we're Friends for.

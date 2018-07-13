@@ -148,7 +148,7 @@ static void overhead_control (unsigned int len)
 static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
 {
 	printk("\n\n\n\n\n  <<<<<<<<<<<< rreq_send >>>>>>>>>>>>>> \n\n");
-	
+
 	/* Concatenate RREQ flags into 1 byte */
 	u8_t flags = data->G + (data->D << 1) + (data->U << 2) + (data->I << 3);
 	/* Default network layer next hop is to broadcast to all nodes */
@@ -282,7 +282,7 @@ static void ring_search_timer(struct k_timer *timer_id)
 int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *buf)
 {
 	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_trans_rreq_recv >>>>>>>>>>>>>> \n\n");
-	
+
 	/* _GUI_ */
 	printk("\n[GUI] %04x-RREQ-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
 	/* Dissect the received RREQ into fields */
@@ -311,7 +311,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	if(data->hop_count==0)
 	{
 		printk("HB:recv as a RREQ  %04x RSSI is %d ",data->source_address,data->rssi);
-		bt_mesh_trans_hello_msg_recv(data->source_address);				
+		bt_mesh_trans_hello_msg_recv(data->source_address);
 	}
 
 	overhead_control(buf->len);
@@ -364,7 +364,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 			return 0;
 		}
 		/* Destination has received the first RREQ */
-		else 
+		else
 		{
 			BT_DBG("Creating entry and waiting for RREQ wait interval ");
 			/* Create a reverse entry */
@@ -382,7 +382,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 				entry_data->net_idx 											 = rx -> ctx.net_idx;
 				return 0;
 			}
-			else 
+			else
 			{
 				return -ENOSR;
 			}
@@ -395,7 +395,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	 *   - send a directed RREQ to RREQ's destination
 	*/
 	if (IS_ENABLED(CONFIG_BT_MESH_RELAY))
-	{	
+	{
 		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry) &&
 		(data->source_sequence_number <entry->destination_sequence_number +RREQ_RING_SEARCH_MAX_TTL))
 		{
@@ -631,7 +631,7 @@ int bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 static int rrep_send(struct rrep_data *data,u16_t net_idx, u16_t destination_address )
 {
 	printk("\n\n\n\n\n  <<<<<<<<<<<< rrep_send >>>>>>>>>>>>>> \n\n");
-	
+
 	/* TODO : check when rreq_recv is calling rrep_send */
 	struct bt_mesh_msg_ctx ctx =
 	{
@@ -802,7 +802,7 @@ int bt_mesh_trans_rrep_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 				table_entry->net_idx 												= rx -> ctx.net_idx;
 				add_neighbour(table_entry->next_hop, table_entry->net_idx);
 			}
-			else 
+			else
 			{
 				return -ENOSR;
 			}
@@ -951,7 +951,7 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 		}
 	}
 	/* RWAIT is received by an intermediate node */
-	else 
+	else
 	{
 		if (!bt_mesh_search_invalid_destination(rx->ctx.addr, rx->dst,rx->ctx.net_idx, &temp))
 		{
@@ -1538,4 +1538,33 @@ void view_hello_msg_list()
 		printk("\x1b[32m Hello msg List:source address=%04x\x1b[0m ", entry->source_address);
 	}
 	k_sem_give(&hello_msg_list_sem);
+}
+
+
+/*  Application functions */
+static int topo = 0;
+void change_topology()
+{
+topo = (topo+1)%3;
+if (topo==0)
+{
+	printk("Topology:All nodes in the range of each other\n");
+}
+else if (topo==1)
+{
+	printk("Topology: Diamond\n");
+}
+else if (topo==2)
+{
+	printk("Topology: Linear Nodes\n");
+}
+else {
+	printk("Topology: Error\n");
+}
+}
+
+
+int get_topology()
+{
+	return topo;
 }

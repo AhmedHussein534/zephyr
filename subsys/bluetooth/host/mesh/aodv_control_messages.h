@@ -24,7 +24,7 @@
 
 /* Ring search Macros */
 #define RREQ_RING_SEARCH_WAIT_INTERVAL K_MSEC(500)
-#define RREQ_RING_SEARCH_WAIT_INTERVAL_CONST K_MSEC(100)
+#define RREQ_RING_SEARCH_WAIT_INTERVAL_CONST K_MSEC(1000)
 #define RREQ_RING_SEARCH_MAX_TTL 10
 
 /* RREP DEFINITIONS */
@@ -169,3 +169,9 @@ void bt_mesh_trans_rerr_list_init();
 int hello_msg_list_create_entry(struct hello_msg_list_entry **entry_location);
 void view_hello_msg_list();
 void bt_mesh_trans_hello_msg_recv(u16_t src);
+
+
+
+/* App functions */
+void change_topology();
+int get_topology();

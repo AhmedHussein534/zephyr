@@ -37,10 +37,10 @@
 #define RREP_GET_SRC_NUMBER_OF_ELEMENTS(buf) buf->data[10] + (buf->data[11] << 8)
 
 /* RWAIT DEFINITIONS */
-#define RWAIT_GET_DST_ADDR(buf) buf->data[1] + (buf->data[2] << 8)
-#define RWAIT_GET_SRC_ADDR(buf) buf->data[3] + (buf->data[4] << 8)
-#define RWAIT_GET_SRC_SEQ_NUM(buf) buf->data[5] + (buf->data[6] << 8) + (buf->data[7] << 16) + (buf->data[8] << 24)
-#define RWAIT_GET_HOP_COUNT(buf) buf->data[9]
+#define RWAIT_GET_DST_ADDR(buf) buf->data[0] + (buf->data[1] << 8)
+#define RWAIT_GET_SRC_ADDR(buf) buf->data[2] + (buf->data[3] << 8)
+#define RWAIT_GET_SRC_SEQ_NUM(buf) buf->data[4] + (buf->data[5] << 8) + (buf->data[6] << 16) + (buf->data[7] << 24)
+#define RWAIT_GET_HOP_COUNT(buf) buf->data[8]
 
 /* RERR DEFINITIONS */
 #define RERR_GET_DST_NUM(buf) buf->data[0]

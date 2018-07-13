@@ -305,7 +305,7 @@ static void sen_status(struct bt_mesh_model *model,
 			  struct net_buf_simple *buf)
 {
 	struct sensors recvd_data;
-	printk("[GUI] %04x-endE2E\n",ctx->addr);
+	//printk("[GUI] %04x-endE2E\n",ctx->addr);
 	//overhead_data(buf->len);
 	printk("[GUI] %04x-PktActual-%d\n",ctx->addr,buf->len);
 	printk("[GUI] %04x-PktActual-%d\n",NODE_ADDR,buf->len);

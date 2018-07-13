@@ -884,6 +884,8 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
 	{
 		data = rwait_data;
 		ctx = rx->ctx;
+		ctx.addr=destination_entry->next_hop;
+		ctx.send_ttl=0;
 		tx.ctx  = &ctx;
 	}
 	tx.sub  = bt_mesh_subnet_get(rreq_net_idx);
@@ -893,7 +895,6 @@ static void rwait_send(struct rreq_data* rreq_recv_data,struct bt_mesh_route_ent
 	/* Construct a buffer with RWAIT's data */
 	struct net_buf_simple *sdu = NET_BUF_SIMPLE(BT_MESH_TX_SDU_MAX);
 	net_buf_simple_init(sdu, 0);
-	net_buf_simple_add_u8(sdu, TRANS_CTL_OP_RWAIT);
 	net_buf_simple_add_le16(sdu, data->destination_address);
 	net_buf_simple_add_le16(sdu, data->source_address);
 	net_buf_simple_add_le32(sdu, data->source_sequence_number);
@@ -923,7 +924,8 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 	printk("\n[GUI] %04x-RWAIT-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
 	struct rwait_data temp_data;
 	struct rwait_data *data = &temp_data;
-	struct bt_mesh_route_entry *temp = NULL;
+	struct bt_mesh_route_entry temp_entry;
+	struct bt_mesh_route_entry *temp = &temp_entry;
 	overhead_control(buf->len);
 
 	/* Dissect the received RWAIT */
@@ -948,7 +950,7 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
  		 *  then it hasn't been verified yet which means it's still
 		 *  in the ring search function
 		*/
-		if (!bt_mesh_search_valid_destination(rx->ctx.addr, rx->dst,rx->ctx.net_idx, &temp))
+		if (!bt_mesh_search_valid_destination(data->source_address,data->destination_address,rx->ctx.net_idx, &temp))
 		{
 			/* Insert a new node in the rrep_rwait_list */
 			struct rrep_rwait_list_entry temp_entry;
@@ -961,9 +963,9 @@ void bt_mesh_trans_rwait_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *
 	/* RWAIT is received by an intermediate node */
 	else
 	{
-		if (!bt_mesh_search_invalid_destination(rx->ctx.addr, rx->dst,rx->ctx.net_idx, &temp))
+		if (bt_mesh_search_invalid_destination(data->destination_address,data->source_address,rx->ctx.net_idx, &temp))
 		{
-			rwait_send(NULL,NULL,data, rx, true);
+			rwait_send(NULL,temp,data, rx, true);
 		}
 		else
 		{

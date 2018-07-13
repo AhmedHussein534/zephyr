@@ -167,6 +167,7 @@ static int rreq_send(struct rreq_data *data, u8_t TTL, u16_t net_idx)
 	}
 	else if(data->I)
 	{
+
 		printk("received directive RREQ is dropped\n");
 		return -ENODRREQ;
 	}
@@ -283,8 +284,6 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 {
 	printk("\n\n\n\n\n  <<<<<<<<<<<< bt_mesh_trans_rreq_recv >>>>>>>>>>>>>> \n\n");
 
-	/* _GUI_ */
-	printk("\n[GUI] %04x-RREQ-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
 	/* Dissect the received RREQ into fields */
 	struct rreq_data temp;
 	struct rreq_data *data = &temp;
@@ -298,6 +297,15 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	data->D = RREQ_GET_D_FLAG(buf);
 	data->U = RREQ_GET_U_FLAG(buf);
 	data->I = RREQ_GET_I_FLAG(buf);
+	if(data->I)
+	{
+		printk("\n[GUI] %04x-DRREQ-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
+	}
+	else
+	{
+		/* _GUI_ */
+		printk("\n[GUI] %04x-RREQ-%04x\n",rx->ctx.addr,bt_mesh_primary_addr());
+	}
 	if(data->U==0)
 	{
 		data->destination_sequence_number = RREQ_GET_DST_SEQ(buf);
@@ -559,7 +567,7 @@ int bt_mesh_trans_ring_search(struct bt_mesh_net_tx *tx)
 				struct k_timer temp_timer;
 				ring_struct.ring_timer = temp_timer;
 				k_timer_init(&ring_struct.ring_timer, ring_search_timer, NULL);
-				k_timer_start(&ring_struct.ring_timer, RREQ_RING_SEARCH_WAIT_INTERVAL*8, 0); /* TODO: correct this */
+				k_timer_start(&ring_struct.ring_timer, RREQ_RING_SEARCH_WAIT_INTERVAL*8*4, 0); /* TODO: correct this */
 
 				/* delete entry */
 				sys_slist_find_and_remove(&rrep_rwait_list, &temp->node);

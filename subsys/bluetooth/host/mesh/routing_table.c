@@ -18,8 +18,8 @@
 #define ALLIGNED 4              /* Memory Allignment */
 #define ALLOCATION_INTERVAL 100 /* maximum time taken to allocate from slab */
 #define ENTRY_SIZE sizeof(struct bt_mesh_route_entry)
-#define LIFETIME  K_SECONDS(120)
-#define RREQ_INTERVAL_WAIT K_MSEC(1000)
+#define LIFETIME  K_SECONDS(12)
+#define RREQ_INTERVAL_WAIT K_MSEC(3000)
 
 
 /** @brief Linked list holding pointers to the valid entries of the routing tables. */

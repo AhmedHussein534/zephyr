@@ -49,7 +49,7 @@
 #define RREQ_GET_DST_SEQ(buf) buf->data[12] + (buf->data[13] << 8) + (buf->data[14] << 16)
 
 /* Ring search Macros */
-#define RREQ_RING_SEARCH_WAIT_INTERVAL K_MSEC(500)
+#define RREQ_RING_SEARCH_WAIT_INTERVAL K_SECONDS(5)
 #define RREQ_RING_SEARCH_WAIT_INTERVAL_CONST K_MSEC(100)
 #define RREQ_RING_SEARCH_MAX_TTL 10
 #define RING_BUFFER_DELAY K_MSEC(3000)
@@ -76,7 +76,7 @@
 #define RERR_GET_DST_SEQ_NUM(buf,i) (buf->data[i+2] + (buf->data[i+3] << 8) + (buf->data[i+4] << 16))
 
 /* Hello Message DEFINITIONS */
-#define HELLO_MSG_LIFETIME  K_SECONDS(40)
+#define HELLO_MSG_LIFETIME  K_SECONDS(9)
 
 /*Error Messages*/
 #define ELOCAL 139 /* Source address is a local element*/
@@ -434,12 +434,16 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	data->destination_address = RREQ_GET_DST_ADDR(buf);
 	data->source_number_of_elements = RREQ_GET_SRC_NUMBER_OF_ELEMENTS(buf);
 	data->hop_count = RREQ_GET_HOP_COUNT(buf);
-	data->rssi=(RREQ_GET_RSSI(buf) * (data->hop_count ) + rx->rssi)/(data->hop_count + 1);
+	data->rssi=(RREQ_GET_RSSI(buf) * (data->hop_count) + rx->rssi)/(data->hop_count + 1);
 	data->next_hop = rx->ctx.addr;
 	data->G = RREQ_GET_G_FLAG(buf);
 	data->D = RREQ_GET_D_FLAG(buf);
 	data->U = RREQ_GET_U_FLAG(buf);
 	data->I = RREQ_GET_I_FLAG(buf);
+	/* _TEST_ */
+	printk("NEW:RREQ:RSSI average = %d",data->rssi);
+	printk("NEW:RREQ:number of hops= %d",data->hop_count);
+	/* _TEST_ */
 	if(data->U==0)
 	{
 		data->destination_sequence_number = RREQ_GET_DST_SEQ(buf);
@@ -479,7 +483,8 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		/* Drop any received RREQ after the expiry of the ring search timer */
 		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry)) {
 			/*Compare sequence numbers before dropping packets*/
-					if (data->source_sequence_number >= (entry->destination_sequence_number+2*RREQ_RING_SEARCH_MAX_TTL))
+
+				if (data->source_sequence_number > entry->destination_sequence_number ? (data->source_sequence_number > (entry->destination_sequence_number+5*RREQ_RING_SEARCH_MAX_TTL)):(data->source_sequence_number < (entry->destination_sequence_number+5*RREQ_RING_SEARCH_MAX_TTL)))
 					{
 						bt_mesh_invalidate_rerr_route(entry);
 						BT_DBG("Creating entry and waiting for RREQ wait interval ");
@@ -508,9 +513,19 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		/* Multiple RREQs are received in the interval of ring search timer */
 		else if (bt_mesh_search_invalid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry))
 		{
+
+			/* _TEST_ */
+			printk("NEW:RREQ:RSSI average = %d",data->rssi);
+			printk("NEW:RREQ:number of hops= %d",data->hop_count);
+			printk("OLD:RREQ:RSSI average= %d",entry->rssi);
+			printk("OLD:RREQ:number of hops= %d",entry->hop_count);
+			/* _TEST_ */
 			/* If it contains better data, replace */
-			if ((data->hop_count*10+(data->rssi*10)/RSSI_MIN) < (entry->hop_count*10+(entry->rssi*10)/RSSI_MIN)) {
+			if ((data->hop_count*100+(data->rssi*100)/RSSI_MIN) < (entry->hop_count*100+(entry->rssi*100)/RSSI_MIN)) {
 				BT_DBG("Modifying existing entry ");
+				/* _TEST_ */
+				printk("Modifying existing entry");
+				/* _TEST_ */
 				entry->destination_sequence_number = data->destination_sequence_number;
 				entry->hop_count                   = data->hop_count;
 				entry->next_hop                    = data->next_hop;
@@ -553,7 +568,7 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 	{
 		if (bt_mesh_search_valid_destination(data->destination_address, data->source_address, rx->ctx.net_idx, &entry))
 		{
-			if (data->source_sequence_number < (entry->destination_sequence_number +2*RREQ_RING_SEARCH_MAX_TTL))
+			if (data->source_sequence_number <= entry->destination_sequence_number ? (data->source_sequence_number <= (entry->destination_sequence_number+5*RREQ_RING_SEARCH_MAX_TTL)):(data->source_sequence_number > (entry->destination_sequence_number+5*RREQ_RING_SEARCH_MAX_TTL)))
 								{
 									BT_DBG("RREQ is dropped because of an already existing entry and sequnce number is within ring seach");
 									return -ENORREQSENT;
@@ -664,7 +679,6 @@ int bt_mesh_trans_rreq_recv(struct bt_mesh_net_rx *rx, struct net_buf_simple *bu
 		}
 	}
 }
-
 	 return 0;
 }
 
